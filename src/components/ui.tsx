@@ -1,4 +1,4 @@
-import { scoreLabel } from '../lib/scoring';
+import { huntability, scoreLabel } from '../lib/scoring';
 import type { Confidence } from '../lib/forecast';
 
 export function scoreColor(score: number): string {
@@ -9,8 +9,8 @@ export function scoreColor(score: number): string {
 export function ScoreBadge({ score, size = 'md', estimated = false }: { score: number; size?: 'sm' | 'md' | 'lg'; estimated?: boolean }) {
   const { label } = scoreLabel(score);
   return (
-    <div className={`score-badge ${size} ${estimated ? 'estimated' : ''}`} style={{ '--c': scoreColor(score) } as React.CSSProperties} title={`${label}${estimated ? ' (estimated)' : ''}`}>
-      <span className="num">{score}</span>
+    <div className={`score-badge ${size} ${estimated ? 'estimated' : ''}`} style={{ '--c': scoreColor(score) } as React.CSSProperties} title={`Huntability ${huntability(score)}/10: ${label}${estimated ? ' (estimated)' : ''}`}>
+      <span className="num">{huntability(score)}</span>
       {size !== 'sm' && <span className="lbl">{label}</span>}
     </div>
   );

@@ -1,4 +1,5 @@
 import { bestDays, type DayForecast } from '../lib/forecast';
+import { huntability } from '../lib/scoring';
 import { formatDay, formatTime, localParts } from '../lib/time';
 import { ConfidencePill, ScoreBadge, scoreColor } from './ui';
 
@@ -73,9 +74,9 @@ export function BestDays({ days, tz, onOpen }: { days: DayForecast[]; tz: string
         ))}
         {cells.map((d, i) =>
           d ? (
-            <button key={d.key} className={`cal-cell ${d.estimated ? 'estimated' : ''}`} style={{ background: scoreColor(d.score) }} onClick={() => onOpen(d.key)} title={`${d.key}: ${d.score}`}>
+            <button key={d.key} className={`cal-cell ${d.estimated ? 'estimated' : ''}`} style={{ background: scoreColor(d.score) }} onClick={() => onOpen(d.key)} title={`${d.key}: ${huntability(d.score)}`}>
               <span className="cal-day">{localParts(d.midnight + 12 * 3600e3, tz).day}</span>
-              <span className="cal-score">{d.score}</span>
+              <span className="cal-score">{huntability(d.score)}</span>
             </button>
           ) : (
             <div key={`e${i}`} />

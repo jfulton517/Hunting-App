@@ -1,5 +1,5 @@
 import type { DayForecast, ScoreWindow } from '../lib/forecast';
-import { legalWindow, type Species } from '../lib/scoring';
+import { huntability, legalWindow, type Species } from '../lib/scoring';
 import { formatDay, formatTime } from '../lib/time';
 import { compass, describeWeatherCode, hpaToInHg, type HourWeather } from '../lib/weather';
 import { standsFor, windAdvice, type Stand } from '../lib/wind';
@@ -16,7 +16,7 @@ function WindowCard({ title, w, tz, dir, stands, species }: { title: string; w: 
         {formatTime(w.start, tz)} – {formatTime(w.end, tz)}
       </div>
       <div className="window-score" style={{ color: scoreColor(w.score) }}>
-        {w.score}
+        {huntability(w.score)}
       </div>
       {dir != null && (
         <div className="window-wind">

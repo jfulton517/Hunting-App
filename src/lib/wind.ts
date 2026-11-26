@@ -1,10 +1,8 @@
+import type { Stand } from './data/types';
 import { compass, compass8, COMPASS_8, type Compass8 } from './weather';
 
-export interface Stand {
-  id: string;
-  name: string;
-  winds: Compass8[]; // wind directions (FROM) this stand can be hunted on
-}
+export type { Stand };
+
 
 export function opposite(dir: Compass8): Compass8 {
   return COMPASS_8[(COMPASS_8.indexOf(dir) + 4) % 8];

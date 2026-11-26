@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { DayForecast } from '../lib/forecast';
+import { huntability } from '../lib/scoring';
 import { formatDay } from '../lib/time';
 import { scoreColor } from './ui';
 
@@ -24,7 +25,7 @@ export function DayStrip({ days, tz, selected, onSelect, topKeys }: { days: DayF
               <span className="dow">{i === 0 ? 'Today' : formatDay(d.midnight + 12 * 3600e3, tz, { weekday: 'short', month: undefined, day: undefined })}</span>
               <span className="date">{formatDay(d.midnight + 12 * 3600e3, tz, { weekday: undefined })}</span>
               <span className="chip-score" style={{ background: scoreColor(d.score) }}>
-                {d.score}
+                {huntability(d.score)}
               </span>
               {topKeys.has(d.key) && <span className="star" title="One of the best days">★</span>}
             </button>

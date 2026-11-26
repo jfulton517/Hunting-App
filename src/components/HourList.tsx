@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { HourScore } from '../lib/scoring';
+import { huntability, type HourScore } from '../lib/scoring';
 import { formatHour, HOUR } from '../lib/time';
 import { compass, describeWeatherCode, hpaToInHg, type HourWeather } from '../lib/weather';
 import { Bar, scoreColor, WindArrow } from './ui';
@@ -33,7 +33,7 @@ export function HourList({ hours, wx, tz, now, legalStart, legalEnd }: { hours: 
                 <Bar value={h.score / 100} color={scoreColor(h.score)} />
               </span>
               <span className="h-score" style={{ color: scoreColor(h.score) }}>
-                {h.score}
+                {huntability(h.score)}
               </span>
               {w ? (
                 <span className="h-wx">
