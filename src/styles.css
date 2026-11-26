@@ -1481,3 +1481,8 @@ select.input {
 .edit-photo .review-photo {
   margin-top: 6px;
 }
+.select-bar .assign-select {
+  width: auto;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}

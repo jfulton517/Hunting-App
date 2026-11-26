@@ -214,7 +214,7 @@ function pickStand(camera: Camera | null, stands: Stand[], windDeg: number | nul
   if (linked && dir)
     return {
       stand: null,
-      setup: `${linked.name} (the stand at ${camera.name}) is set for ${linked.winds.length ? linked.winds.join('/') : 'no'} winds, and this is a ${dir} wind. Hunt it on a better wind, or set up on the ${compass((windDeg! + 180) % 360)} (downwind) side of the camera.`,
+      setup: `${linked.name} (the stand at ${camera.name}) ${linked.facing ? `faces ${linked.facing} and is best on ${linked.winds.join('/')} winds` : `is set for ${linked.winds.length ? linked.winds.join('/') : 'no'} winds`}, and this is a ${dir} wind. Hunt it on a better wind, or set up on the ${compass((windDeg! + 180) % 360)} (downwind) side of the camera.`,
     };
   return {
     stand: null,
