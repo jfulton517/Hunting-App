@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useData } from '../lib/data/store';
-import { newId, type AgeClass, type Deer } from '../lib/data/types';
+import { newId, type AgeClass, type Deer, type Sighting } from '../lib/data/types';
 import type { DayForecast } from '../lib/forecast';
 import { distanceM } from '../lib/geo';
 import { recommendForDeer } from '../lib/patterns';
@@ -9,6 +9,8 @@ import { DAY, formatDay, formatTime } from '../lib/time';
 import { useDeerAnalysis } from '../lib/useDeerAnalysis';
 import { groupVisits } from '../lib/visits';
 import { compass, type HourWeather } from '../lib/weather';
+import { useDeletePhotos } from './Duplicates';
+import { EditPhoto } from './EditPhoto';
 import { Lightbox, Photo } from './Photo';
 import { scoreColor, WindArrow } from './ui';
 
@@ -94,6 +96,8 @@ function DeerDetail({ deer, fc, onBack }: { deer: Deer; fc: ForecastCtx; onBack:
   const { rows, save } = useData();
   const [editing, setEditing] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+  const [editPhoto, setEditPhoto] = useState<Sighting | null>(null);
+  const deletePhotos = useDeletePhotos();
   const { sightings, pattern, status } = useDeerAnalysis(deer, fc.place);
 
   const cams = rows.cameras.filter((c) => sightings.some((s) => s.camera_id === c.id));
@@ -219,7 +223,21 @@ function DeerDetail({ deer, fc, onBack }: { deer: Deer; fc: ForecastCtx; onBack:
           ))}
         </div>
       </section>
-      {zoom && <Lightbox path={zoom} onClose={() => setZoom(null)} />}
+      {zoom && (
+        <Lightbox
+          path={zoom}
+          onClose={() => setZoom(null)}
+          onEdit={(() => {
+            const z = rows.sightings.find((x) => x.photo_path === zoom);
+            return z ? () => setEditPhoto(z) : undefined;
+          })()}
+          onDelete={(() => {
+            const z = rows.sightings.find((x) => x.photo_path === zoom);
+            return z ? () => deletePhotos([z]) : undefined;
+          })()}
+        />
+      )}
+      {editPhoto && <EditPhoto s={editPhoto} tz={fc.tz} fallback={fc.place} onClose={() => setEditPhoto(null)} onDelete={() => deletePhotos([editPhoto])} />}
     </div>
   );
 }

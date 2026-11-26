@@ -1473,3 +1473,11 @@ select.input {
 .duplicates .btn.block {
   margin: 8px 0;
 }
+
+/* ---------- edit photo ---------- */
+.row.wrap {
+  flex-wrap: wrap;
+}
+.edit-photo .review-photo {
+  margin-top: 6px;
+}
