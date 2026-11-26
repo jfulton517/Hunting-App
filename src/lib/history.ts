@@ -43,6 +43,21 @@ export async function fetchHourlyHistory(lat: number, lon: number, start: number
   return [...out.values()].sort((a, b) => a.time - b.time);
 }
 
+// Past weather is fetched once per area and date range per session.
+const cache = new Map<string, Promise<HourWeather[]>>();
+export function cachedHistory(lat: number, lon: number, start: number, end: number): Promise<HourWeather[]> {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)},${Math.floor(start / DAY)},${Math.floor(end / DAY)}`;
+  if (!cache.has(key))
+    cache.set(
+      key,
+      fetchHourlyHistory(lat, lon, start, end).catch((e) => {
+        cache.delete(key);
+        throw e;
+      }),
+    );
+  return cache.get(key)!;
+}
+
 /** Conditions at time t, from an hour-indexed weather map. Null if weather is missing. */
 export function conditionsAt(t: number, lat: number, lon: number, wx: Map<number, HourWeather>): SightingConditions | null {
   const hour = Math.round(t / HOUR) * HOUR;

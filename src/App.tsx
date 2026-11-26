@@ -275,7 +275,7 @@ function Main() {
       )}
 
       {tab === 'bucks' && deerForecast && <Bucks fc={{ days: deerForecast.days, wx: wxMap, tz, place }} openId={openDeer} onOpen={setOpenDeer} />}
-      {tab === 'cam' && <TrailCam tz={tz} />}
+      {tab === 'cam' && <TrailCam tz={tz} fc={deerForecast ? { days: deerForecast.days, wx: wxMap, tz, place } : null} />}
       {tab === 'account' && <Account lat={place.lat} />}
 
       <nav className="bottom-nav" aria-label="Sections">

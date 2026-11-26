@@ -25,6 +25,7 @@ interface DataState {
   loaded: boolean;
   error: string | null;
   save<T extends Table>(table: T, row: TableRows[T]): Promise<void>;
+  saveMany<T extends Table>(table: T, rows: TableRows[T][]): Promise<void>;
   remove(table: Table, id: string): Promise<void>;
   setSettings(s: UserSettings): void;
   signOut(): Promise<void>;
@@ -111,6 +112,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [repo],
   );
 
+  const saveMany = useCallback(
+    async <T extends Table>(table: T, incoming: TableRows[T][]) => {
+      if (!incoming.length) return;
+      const byId = new Map(incoming.map((r) => [r.id, r]));
+      setRows((r) => {
+        const list = r[table] as TableRows[T][];
+        const seen = new Set<string>();
+        const next = list.map((x) => {
+          const u = byId.get(x.id);
+          if (u) seen.add(x.id);
+          return u ?? x;
+        });
+        for (const row of incoming) if (!seen.has(row.id)) next.push(row);
+        return { ...r, [table]: next };
+      });
+      try {
+        await repo.upsertMany(table, incoming);
+      } catch (e) {
+        setError(`Couldn't save: ${(e as Error).message}`);
+        throw e;
+      }
+    },
+    [repo],
+  );
+
   const remove = useCallback(
     async (table: Table, id: string) => {
       setRows((r) => ({ ...r, [table]: (r[table] as { id: string }[]).filter((x) => x.id !== id) }));
@@ -168,6 +194,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     loaded,
     error,
     save,
+    saveMany,
     remove,
     setSettings,
     signOut: async () => {

@@ -216,7 +216,7 @@ function pickStand(camera: Camera | null, stands: Stand[], windDeg: number | nul
  * suits the wind.
  */
 export function recommendForDeer(opts: {
-  deer: Deer;
+  deer?: Deer;
   pattern: DeerPattern;
   days: DayForecast[];
   wx: Map<number, HourWeather>;

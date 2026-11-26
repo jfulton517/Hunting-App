@@ -13,6 +13,7 @@ export interface Repo {
   kind: 'local' | 'cloud';
   list<T extends Table>(table: T): Promise<TableRows[T][]>;
   upsert<T extends Table>(table: T, row: TableRows[T]): Promise<void>;
+  upsertMany<T extends Table>(table: T, rows: TableRows[T][]): Promise<void>;
   remove(table: Table, id: string): Promise<void>;
   getSettings(): Promise<Partial<UserSettings> | null>;
   saveSettings(s: UserSettings): Promise<void>;
@@ -62,6 +63,17 @@ export function localRepo(): Repo {
       const stamped = { created_at: new Date().toISOString(), ...row };
       if (i >= 0) rows[i] = stamped;
       else rows.push(stamped);
+      save(key(table), rows);
+    },
+    async upsertMany(table, incoming) {
+      const rows = load<{ id: string }[]>(key(table), []);
+      const index = new Map(rows.map((r, i) => [r.id, i]));
+      for (const row of incoming) {
+        const stamped = { created_at: new Date().toISOString(), ...row };
+        const i = index.get(row.id);
+        if (i != null) rows[i] = stamped;
+        else rows.push(stamped);
+      }
       save(key(table), rows);
     },
     async remove(table, id) {
@@ -146,6 +158,11 @@ export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
     },
     async upsert(table, row) {
       check(await sb.from(table).upsert({ ...row, user_id: userId }));
+    },
+    async upsertMany(table, rows) {
+      for (let i = 0; i < rows.length; i += 200) {
+        check(await sb.from(table).upsert(rows.slice(i, i + 200).map((r) => ({ ...r, user_id: userId }))));
+      }
     },
     async remove(table, id) {
       check(await sb.from(table).delete().eq('id', id));

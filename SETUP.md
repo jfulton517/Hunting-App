@@ -80,6 +80,13 @@ Browning doesn't offer a way for other apps to sign in to Strike Force Wireless,
 1. In the **Strike Force Wireless** app, tap **Select All**, then **Share → Save Images**.
 2. In Hunt Forecast, go to **Trail Cam**, pick the camera, tap **Choose photos or ZIP**, and select the saved photos.
 
+**What happens to each photo (free)**
+- **Date and time:** taken from the photo file when it's there. If not, the app **reads the date/time stamp printed on the photo**, right on your phone with free text recognition. The first use downloads the reader (about 3 MB).
+- **Weather:** the app looks up the **temperature, wind, barometric pressure trend, temperature change from the day before, and moon phase** at the exact hour each photo was taken, using historical weather for the camera's location. Give each camera a location in Account → Trail cameras.
+- Photos imported before this update, or while you were offline: tap **Analyze photos** on the Trail Cam tab to do both steps for all of them at once.
+- **Quick tag** buttons (Buck, Doe, Fawn, Empty) confirm a photo with one tap.
+- On the **Photo log**, tap a camera's name to see **when bucks move on that camera** and the **best upcoming times to hunt it**.
+
 **Good to know**
 - **Duplicates are skipped automatically**, so you can re-download everything each time without double-counting sightings.
 - **Free plan:** you pick the buck in each photo. With the **AI upgrade**, the AI suggests the buck and reads the date and time from each photo's info strip. Before a large batch is sent to the AI, the app shows the estimated cost and lets you import without AI instead.

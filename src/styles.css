@@ -1171,3 +1171,22 @@ select.input {
 .import-status .bar {
   height: 10px;
 }
+
+/* ---------- photo analysis ---------- */
+.quick-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0 10px;
+}
+.conditions {
+  margin: -4px 0 8px;
+}
+.gallery figcaption .cond {
+  color: var(--accent);
+  font-size: 0.7rem;
+}
+.analyze .btn {
+  margin: 6px 0;
+}
