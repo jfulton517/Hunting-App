@@ -94,6 +94,7 @@ create table if not exists public.hunts (
 alter table public.sightings add column if not exists photo_hash text;
 alter table public.sightings add column if not exists photo_phash text;
 alter table public.cameras add column if not exists stand_id uuid references public.stands on delete set null;
+alter table public.stands add column if not exists facing text;
 
 create index if not exists sightings_user_deer on public.sightings (user_id, deer_id);
 create index if not exists sightings_user_hash on public.sightings (user_id, photo_hash);

@@ -131,3 +131,11 @@ describe('hunting coach: spring turkey', () => {
     expect(a.calling.intervalMin).toBeLessThanOrEqual(8);
   });
 });
+
+describe('stand facing direction', () => {
+  it('works out good winds from the direction a stand faces', async () => {
+    const { windsForFacing } = await import('./wind');
+    expect(windsForFacing('N')).toEqual(['NW', 'N', 'NE']);
+    expect(windsForFacing('E')).toEqual(['NE', 'E', 'SE']);
+  });
+});

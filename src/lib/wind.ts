@@ -4,6 +4,26 @@ import { compass, compass8, COMPASS_8, type Compass8 } from './weather';
 export type { Stand };
 
 
+/**
+ * Good winds for a stand that faces `facing`: wind blowing from the direction you look
+ * (or 45° either side) carries your scent behind you, away from where deer approach.
+ */
+export function windsForFacing(facing: Compass8): Compass8[] {
+  const i = COMPASS_8.indexOf(facing);
+  return [COMPASS_8[(i + 7) % 8], facing, COMPASS_8[(i + 1) % 8]];
+}
+
+export const FACING_NAME: Record<Compass8, string> = {
+  N: 'North',
+  NE: 'Northeast',
+  E: 'East',
+  SE: 'Southeast',
+  S: 'South',
+  SW: 'Southwest',
+  W: 'West',
+  NW: 'Northwest',
+};
+
 export function opposite(dir: Compass8): Compass8 {
   return COMPASS_8[(COMPASS_8.indexOf(dir) + 4) % 8];
 }

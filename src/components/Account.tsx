@@ -3,7 +3,8 @@ import { useData } from '../lib/data/store';
 import { newId, type AiTier, type Camera, type SavedPlace, type Stand } from '../lib/data/types';
 import { getDevicePosition } from '../lib/location';
 import { defaultRutPeak } from '../lib/season';
-import { COMPASS_8, type Compass8 } from '../lib/weather';
+import { COMPASS_8 } from '../lib/weather';
+import { FACING_NAME, windsForFacing } from '../lib/wind';
 
 function CoordsField({ lat, lon, onChange }: { lat: number | null; lon: number | null; onChange: (lat: number | null, lon: number | null) => void }) {
   const [busy, setBusy] = useState(false);
@@ -34,18 +35,6 @@ function CoordsField({ lat, lon, onChange }: { lat: number | null; lon: number |
         {busy ? 'Locating…' : '📍 Use my current location'}
       </button>
       {err && <p className="error small">{err}</p>}
-    </div>
-  );
-}
-
-function WindPicks({ value, onChange }: { value: Compass8[]; onChange: (v: Compass8[]) => void }) {
-  return (
-    <div className="wind-picks">
-      {COMPASS_8.map((w) => (
-        <button type="button" key={w} className={value.includes(w) ? 'active' : ''} onClick={() => onChange(value.includes(w) ? value.filter((x) => x !== w) : [...value, w])}>
-          {w}
-        </button>
-      ))}
     </div>
   );
 }
@@ -139,13 +128,13 @@ function StandsSection() {
   const { rows, save, remove } = useData();
   const [draft, setDraft] = useState<Stand | null>(null);
   return (
-    <Section title="Stands & blinds" hint="Choose the wind directions (where the wind blows FROM) each stand can be hunted on. With a location set, the app can also check that your scent won't blow toward the cameras your target buck uses.">
+    <Section title="Stands & blinds" hint="Set the direction each stand faces. The app works out which winds suit it, so your scent blows behind you. With a location set, it also checks your scent won't drift toward the cameras your target buck uses.">
       {rows.stands.map((s) => (
         <div key={s.id} className="list-row">
           <div>
             <strong>{s.name}</strong> <span className="muted small">{s.kind}</span>
             <div className="small muted">
-              {s.winds.length ? `Winds: ${s.winds.join(', ')}` : 'No winds chosen'}
+              {s.facing ? `Faces ${FACING_NAME[s.facing]} · best winds ${s.winds.join(', ')}` : s.winds.length ? `Winds: ${s.winds.join(', ')}` : 'Direction not set'}
               {s.lat == null && ' · no location'}
             </div>
           </div>
@@ -172,8 +161,19 @@ function StandsSection() {
             ))}
           </div>
           <PlaceSelect value={draft.place_id} onChange={(place_id) => setDraft({ ...draft, place_id })} />
-          <span className="small">Good winds</span>
-          <WindPicks value={draft.winds} onChange={(winds) => setDraft({ ...draft, winds })} />
+          <span className="small">Which direction does it face? (the way you look toward the deer)</span>
+          <div className="wind-picks">
+            {COMPASS_8.map((w) => (
+              <button type="button" key={w} className={draft.facing === w ? 'active' : ''} onClick={() => setDraft({ ...draft, facing: w, winds: windsForFacing(w) })}>
+                {w}
+              </button>
+            ))}
+          </div>
+          <span className="small muted">
+            {draft.facing
+              ? `Faces ${FACING_NAME[draft.facing]}. Best on ${draft.winds.join(', ')} winds, which blow your scent behind you.`
+              : 'Pick a direction and the app works out which winds suit this stand.'}
+          </span>
           <span className="small">Location</span>
           <CoordsField lat={draft.lat} lon={draft.lon} onChange={(lat, lon) => setDraft({ ...draft, lat, lon })} />
           <input className="input" placeholder="Notes (optional)" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
@@ -192,7 +192,7 @@ function StandsSection() {
       ) : (
         <button
           className="btn block"
-          onClick={() => setDraft({ id: newId(), name: '', place_id: rows.places.find((p) => p.is_primary)?.id ?? null, lat: null, lon: null, winds: [], kind: 'stand', notes: '' })}
+          onClick={() => setDraft({ id: newId(), name: '', place_id: rows.places.find((p) => p.is_primary)?.id ?? null, lat: null, lon: null, winds: [], facing: null, kind: 'stand', notes: '' })}
         >
           + Add stand or blind
         </button>

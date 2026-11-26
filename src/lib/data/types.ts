@@ -21,7 +21,10 @@ export interface Stand extends Base {
   name: string;
   lat: number | null;
   lon: number | null;
-  winds: Compass8[]; // wind directions (FROM) this stand can be hunted on
+  /** Direction the hunter looks from this stand (toward where deer come from) */
+  facing?: Compass8 | null;
+  /** Wind directions (FROM) this stand can be hunted on, worked out from `facing` */
+  winds: Compass8[];
   kind: 'stand' | 'blind';
   notes: string;
 }
