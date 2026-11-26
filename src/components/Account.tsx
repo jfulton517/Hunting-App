@@ -212,7 +212,7 @@ export function CamerasSection() {
             <strong>{c.name}</strong>
             <div className="small muted">
               {rows.sightings.filter((s) => s.camera_id === c.id).length} photos
-              {c.stand_id && rows.stands.find((s) => s.id === c.stand_id) ? ` · at ${rows.stands.find((s) => s.id === c.stand_id)!.name}` : ''}
+              {c.stand_id && rows.stands.find((s) => s.id === c.stand_id) ? ` · hunting spot: ${rows.stands.find((s) => s.id === c.stand_id)!.name}` : ' · no hunting spot'}
               {c.lat == null && ' · no location'}
             </div>
           </div>
@@ -232,9 +232,9 @@ export function CamerasSection() {
         >
           <input className="input" placeholder="Name, e.g. Ridge Scrape Cam" required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
           <label className="field">
-            <span>Stand or blind at this camera</span>
+            <span>Hunting spot (stand or blind) this camera watches</span>
             <select className="input" value={draft.stand_id ?? ''} onChange={(e) => setDraft({ ...draft, stand_id: e.target.value || null })}>
-              <option value="">None</option>
+              <option value="">Not assigned</option>
               {rows.stands.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
