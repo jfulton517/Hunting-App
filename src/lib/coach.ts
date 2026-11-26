@@ -248,7 +248,7 @@ function targetCamera(input: CoachInput, bin: TimeBin | null): Camera | null {
   const byId = new Map(input.cameras.map((c) => [c.id, c]));
   const ranked = input.target.pattern.cameras
     .map((pc) => ({ c: byId.get(pc.cameraId), w: pc.n + 2 * pc.daylight + 2 * pc.recent + (bin ? 3 * pc.bins[bin] : 0) }))
-    .filter((x) => x.c && x.c.lat != null)
+    .filter((x) => x.c && (x.c.lat != null || x.c.stand_id))
     .sort((a, b) => b.w - a.w);
   return ranked[0]?.c ?? null;
 }
@@ -265,14 +265,14 @@ export function rankStands(input: CoachInput, t: number): StandOption[] {
     .map((s) => {
       const windOk = !dir || !s.winds.length || s.winds.includes(dir);
       const hasCoords = s.lat != null && s.lon != null;
-      const targetSafe = !(deg != null && cam && hasCoords && targetIsDownwind({ lat: s.lat!, lon: s.lon! }, { lat: cam.lat!, lon: cam.lon! }, deg));
-      const near = cam && hasCoords ? distanceM(s.lat!, s.lon!, cam.lat!, cam.lon!) : null;
+      const targetSafe = !(deg != null && cam && cam.lat != null && hasCoords && targetIsDownwind({ lat: s.lat!, lon: s.lon! }, { lat: cam.lat!, lon: cam.lon! }, deg));
+      const near = cam && cam.stand_id === s.id ? 0 : cam && hasCoords ? distanceM(s.lat!, s.lon!, cam.lat!, cam.lon!) : null;
       let score = (windOk ? 3 : 0) + (targetSafe ? 1 : -2);
       if (near != null) score += near < 300 ? 2 : near < 700 ? 1 : 0;
       if (input.species === 'deer' && s.kind === 'blind' && bin === 'midday') score -= 0.2;
       const why = [
         !dir ? 'Light and variable wind.' : windOk ? `${dir} wind works here.` : `Wrong wind (${dir}) for this stand.`,
-        cam && near != null ? `${formatDistance(near)} from ${cam.name}${targetSafe ? '' : ', but your scent would drift toward it'}.` : '',
+        cam && near === 0 && cam.stand_id === s.id ? `Watches ${cam.name}, where your target shows up.` : cam && near != null ? `${formatDistance(near)} from ${cam.name}${targetSafe ? '' : ', but your scent would drift toward it'}.` : '',
       ]
         .filter(Boolean)
         .join(' ');

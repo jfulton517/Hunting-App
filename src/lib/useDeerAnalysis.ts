@@ -5,6 +5,7 @@ import type { Deer, Sighting, SightingConditions } from './data/types';
 import { cachedHistory, conditionsAt } from './history';
 import { learnPattern, type DeerPattern, type PatternObs } from './patterns';
 import { DAY, HOUR } from './time';
+import { groupVisits } from './visits';
 
 /**
  * Learn a movement pattern from a set of sightings (one buck, or every buck on a camera).
@@ -63,7 +64,10 @@ export function useSightingPattern(sightings: Sighting[], fallback: { lat: numbe
   }, [sig, fallback?.lat, fallback?.lon]);
 
   const pattern: DeerPattern = useMemo(() => {
-    const obs: PatternObs[] = sightings.filter((s) => s.weather).map((s) => ({ t: Date.parse(s.taken_at), cameraId: s.camera_id, c: s.weather! }));
+    // A burst of photos from one walk past the camera is one sighting, not several.
+    const obs: PatternObs[] = groupVisits(sightings)
+      .filter((v) => v.lead.weather)
+      .map((v) => ({ t: Date.parse(v.lead.taken_at), cameraId: v.lead.camera_id, c: v.lead.weather!, photos: v.photos.length }));
     return learnPattern(obs, background);
   }, [sightings, background]);
 

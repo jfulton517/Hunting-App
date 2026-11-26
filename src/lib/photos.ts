@@ -2,7 +2,7 @@
 import exifr from 'exifr';
 import type { Repo } from './data/repo';
 import { newId, type AiTier, type AnimalKind, type Deer, type Sighting } from './data/types';
-import { findDuplicateOf, perceptualHash } from './dedupe';
+import { perceptualHash } from './dedupe';
 import { readStamp } from './stamp';
 import { zonedToEpoch } from './time';
 
@@ -174,17 +174,13 @@ export async function importPhotos(opts: {
         }
         const blob = await shrinkImage(file);
         const takenAt = new Date(exif ?? stamp ?? file.lastModified ?? Date.now()).toISOString();
-        // Same picture saved twice (e.g. standard + HD from Strike Force): different bytes, same image.
+        // Look-alike photos (burst shots, standard + HD copies) are kept. Patterns and
+        // recommendations count them as one visit. The fingerprint powers the optional cleanup tool.
         let phash: string | null = null;
         try {
           phash = await perceptualHash(blob);
         } catch {
           phash = null;
-        }
-        if (findDuplicateOf({ camera_id: opts.cameraId, taken_at: takenAt, photo_hash: hash, photo_phash: phash }, [...opts.sightings, ...summary.created])) {
-          summary.skipped++;
-          update(i, { state: 'skipped', message: 'looks like a photo you already have' });
-          continue;
         }
         const id = newId();
         update(i, { state: 'uploading', message: undefined });

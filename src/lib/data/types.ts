@@ -28,6 +28,8 @@ export interface Stand extends Base {
 
 export interface Camera extends Base {
   place_id: string | null;
+  /** The stand or blind this camera watches (so recommendations know where to sit) */
+  stand_id?: string | null;
   name: string;
   lat: number | null;
   lon: number | null;

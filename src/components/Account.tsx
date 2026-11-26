@@ -212,6 +212,7 @@ export function CamerasSection() {
             <strong>{c.name}</strong>
             <div className="small muted">
               {rows.sightings.filter((s) => s.camera_id === c.id).length} photos
+              {c.stand_id && rows.stands.find((s) => s.id === c.stand_id) ? ` · at ${rows.stands.find((s) => s.id === c.stand_id)!.name}` : ''}
               {c.lat == null && ' · no location'}
             </div>
           </div>
@@ -230,6 +231,17 @@ export function CamerasSection() {
           }}
         >
           <input className="input" placeholder="Name, e.g. Ridge Scrape Cam" required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+          <label className="field">
+            <span>Stand or blind at this camera</span>
+            <select className="input" value={draft.stand_id ?? ''} onChange={(e) => setDraft({ ...draft, stand_id: e.target.value || null })}>
+              <option value="">None</option>
+              {rows.stands.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <PlaceSelect value={draft.place_id} onChange={(place_id) => setDraft({ ...draft, place_id })} />
           <CoordsField lat={draft.lat} lon={draft.lon} onChange={(lat, lon) => setDraft({ ...draft, lat, lon })} />
           <input className="input" placeholder="Notes, e.g. over mock scrape" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />

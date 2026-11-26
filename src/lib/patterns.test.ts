@@ -124,3 +124,18 @@ describe('target buck recommendations', () => {
     expect(recommendForDeer({ deer, pattern: learnPattern([dawnNW(0)], background, NOW), days, wx: wxMap, cameras: [CAM], stands: [] })).toEqual([]);
   });
 });
+
+describe('cameras linked to stands', () => {
+  it('recommends the stand at the camera even without GPS locations', async () => {
+    const { buildForecast: bf } = await import('./forecast');
+    const start = localMidnight(NOW, TZ) - 2 * DAY;
+    const hours: HourWeather[] = Array.from({ length: 24 * 8 }, (_, i) => ({ time: start + i * HOUR, tempF: 38, humidity: 70, pressureHpa: 1018 + (i % 24) * 0.3, windMph: 7, gustMph: 12, windDirDeg: 90, precipIn: 0, precipProb: 0, snowIn: 0, cloudCover: 40, weatherCode: 2 }));
+    const { days } = bf({ lat: 40.1, lon: -88.9, species: 'deer', weather: { timezone: TZ, hours, fetchedAt: NOW }, normals: null, days: 5, now: NOW });
+    const field: Stand = { id: 'gbf', name: 'Ground Blind - Field', place_id: null, lat: null, lon: null, winds: ['E'], kind: 'blind', notes: '' };
+    const cam: Camera = { id: 'wt', name: 'Water Through', place_id: 'p', stand_id: 'gbf', lat: null, lon: null, notes: '' };
+    const obs = Array.from({ length: 6 }, (_, i) => ({ t: NOW - (i + 1) * DAY, cameraId: 'wt', c: cond({ windDirDeg: 90, minutesFromSunrise: 20, minutesFromSunset: 560 }) }));
+    const recs = recommendForDeer({ pattern: learnPattern(obs, background, NOW), days, wx: new Map(hours.map((h) => [h.time, h])), cameras: [cam], stands: [field] });
+    expect(recs[0].stand?.id).toBe('gbf');
+    expect(recs[0].setup).toMatch(/the stand at Water Through/);
+  });
+});

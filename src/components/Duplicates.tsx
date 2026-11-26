@@ -78,10 +78,10 @@ export function Duplicates({ tz }: { tz: string }) {
 
   return (
     <section className="card duplicates">
-      <h3>Duplicate photos</h3>
+      <h3>Duplicate photos (optional)</h3>
       {!checked && (
         <>
-          <p className="small muted">Finds the same picture saved more than once (for example, a standard and an HD copy from Strike Force) and keeps the best copy. Burst shots of a deer moving are different photos, so they're kept.</p>
+          <p className="small muted">You don't need to delete anything: several photos from one walk past the camera already count as one sighting in patterns and recommendations. Use this only to clear out copies of the same picture (for example, a standard and an HD copy from Strike Force).</p>
           <button className="btn block" disabled={busy || rows.sightings.length < 2} onClick={scan}>
             {busy ? 'Checking…' : '🔍 Find duplicate photos'}
           </button>
