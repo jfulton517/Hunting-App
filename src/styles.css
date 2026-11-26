@@ -1134,3 +1134,40 @@ select.input {
 .ok-text {
   color: var(--score-excellent);
 }
+
+/* ---------- bulk import ---------- */
+.dropzone.dragging {
+  border: 2px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.folder-btn {
+  margin-top: 8px;
+}
+.drop-hint {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .drop-hint {
+    display: block;
+  }
+}
+.howto {
+  margin: 4px 0 8px;
+}
+.howto summary {
+  color: var(--accent);
+  cursor: pointer;
+}
+.howto ol {
+  padding-left: 18px;
+  margin: 8px 0;
+}
+.howto li {
+  margin-bottom: 6px;
+}
+.import-status {
+  margin-top: 10px;
+}
+.import-status .bar {
+  height: 10px;
+}

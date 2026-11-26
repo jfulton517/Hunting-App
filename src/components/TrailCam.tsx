@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useData } from '../lib/data/store';
 import { newId, type AgeClass, type AnimalKind, type Deer, type Sighting } from '../lib/data/types';
-import { analyzeSighting, importPhotos, type ImportProgress } from '../lib/photos';
+import { analyzeSighting, expandFiles, importPhotos, type ImportProgress, type ImportSummary } from '../lib/photos';
 import { epochToLocalInput, formatDay, formatTime, zonedToEpoch } from '../lib/time';
 import { CamerasSection } from './Account';
 import { Lightbox, Photo } from './Photo';
@@ -170,6 +170,35 @@ function ReviewCard({ s, tz, onZoom }: { s: Sighting; tz: string; onZoom: (p: st
   );
 }
 
+function ImportStatus({ progress, summary }: { progress: ImportProgress[]; summary: ImportSummary | null }) {
+  const total = progress.length;
+  const finished = progress.filter((p) => p.state === 'done' || p.state === 'skipped' || p.state === 'error').length;
+  const analyzing = progress.filter((p) => p.state === 'analyzing').length;
+  const problems = progress.filter((p) => p.state === 'error' || (p.state === 'done' && p.message));
+  return (
+    <div className="import-status">
+      <div className="bar">
+        <div className="bar-fill" style={{ width: `${total ? (finished / total) * 100 : 0}%`, background: 'var(--accent)' }} />
+      </div>
+      <p className="small">
+        {summary
+          ? `Done: ${summary.imported} imported${summary.skipped ? `, ${summary.skipped} duplicates skipped` : ''}${summary.failed ? `, ${summary.failed} failed` : ''}.`
+          : `${finished} of ${total} photos${analyzing ? `, AI reading ${analyzing}` : ''}…`}
+      </p>
+      {problems.length > 0 && (
+        <ul className="progress small">
+          {problems.slice(0, 10).map((p, i) => (
+            <li key={i} className="error">
+              ✕ {p.name}: {p.message}
+            </li>
+          ))}
+          {problems.length > 10 && <li className="error">…and {problems.length - 10} more</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function TrailCam({ tz }: { tz: string }) {
   const { rows, repo, save, remove, auth, settings } = useData();
   const aiOn = auth === 'signed-in' && settings.aiTier !== 'off';
@@ -188,6 +217,53 @@ export function TrailCam({ tz }: { tz: string }) {
     [rows.sightings, filter],
   );
   const empties = pending.filter((s) => s.ai?.primary_kind === 'none');
+  const confident = pending.filter(
+    (s) => s.ai && (s.ai.primary_kind === 'none' || (s.ai.match_deer_id && s.ai.match_confidence === 'high' && rows.deer.some((d) => d.id === s.ai!.match_deer_id))),
+  );
+  const [dragging, setDragging] = useState(false);
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const folderSupported = typeof document !== 'undefined' && 'webkitdirectory' in document.createElement('input') && !/iPhone|iPad|Android/i.test(navigator.userAgent);
+
+  const acceptConfident = async () => {
+    for (const s of confident) {
+      if (s.ai!.primary_kind === 'none') {
+        if (s.photo_path) await repo.deletePhoto(s.photo_path);
+        await remove('sightings', s.id);
+      } else await save('sightings', { ...s, deer_id: s.ai!.match_deer_id, kind: s.ai!.primary_kind, status: 'confirmed' });
+    }
+  };
+
+  const runImport = async (selected: File[]) => {
+    if (busy || !selected.length) return;
+    setBusy(true);
+    setSummary(null);
+    setNotice(null);
+    try {
+      setProgress([{ name: 'Unpacking…', state: 'reading' }]);
+      const { images, ignored } = await expandFiles(selected);
+      if (!images.length) {
+        setProgress([]);
+        setNotice('No photos found in that selection. Choose JPG/PNG photos or a ZIP of them.');
+        return;
+      }
+      let tier = aiOn ? settings.aiTier : 'off';
+      if (tier !== 'off' && images.length > 25) {
+        const each = tier === 'pro' ? 0.06 : 0.0015;
+        const ok = confirm(
+          `Send ${images.length} photos to ${tier === 'pro' ? 'Pro' : 'Basic'} AI? Estimated cost about $${Math.max(0.01, images.length * each).toFixed(2)}, billed to your Anthropic account. Duplicates are skipped and not charged.\n\nChoose Cancel to import them without AI.`,
+        );
+        if (!ok) tier = 'off';
+      }
+      const result = await importPhotos({ files: images, cameraId: cameraId || null, tz, repo, aiTier: tier, deer: rows.deer, sightings: rows.sightings, save: (s) => save('sightings', s), onProgress: setProgress });
+      setSummary(result);
+      if (ignored) setNotice(`${ignored} file${ignored === 1 ? ' was' : 's were'} skipped because ${ignored === 1 ? "it isn't a photo" : "they aren't photos"}.`);
+    } catch (e) {
+      setNotice(`Import failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
   const deerName = (id: string | null) => rows.deer.find((d) => d.id === id)?.name;
 
   if (!rows.cameras.length)
@@ -203,14 +279,34 @@ export function TrailCam({ tz }: { tz: string }) {
 
   return (
     <div className="trailcam">
-      <section className="card">
+      <section
+        className={`card dropzone ${dragging ? 'dragging' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          runImport([...e.dataTransfer.files]);
+        }}
+      >
         <h3>Add photos</h3>
-        <p className="small muted">
-          In the Strike Force Wireless app, open a photo and save it to your phone's photos (Share → Save Image). Then add the photos here.
-          {aiOn ? ' The AI suggests what is in each photo, and you confirm it.' : ' Then pick which buck is in each one. (AI identification is an optional upgrade on the Account tab.)'}
-        </p>
+        <details className="howto small">
+          <summary>How to get all your photos out of Strike Force</summary>
+          <ol>
+            <li>
+              <strong>On a computer (easiest for lots of photos):</strong> sign in at strikeforcewireless.com, open Photos, use <em>Select All</em> (top right), and download. Then drag the downloaded photos or ZIP file onto this box, or use the buttons below.
+            </li>
+            <li>
+              <strong>On your phone:</strong> in the Strike Force Wireless app, tap <em>Select All</em>, then Share → Save Images. Then tap <em>Choose photos or ZIP</em> here and select them all in your photo library.
+            </li>
+          </ol>
+          <p>Download one camera at a time and pick that camera below, so each photo is filed under the right location. Re-uploading photos you already added is fine, because duplicates are skipped automatically.</p>
+        </details>
         <label className="field">
-          <span>Camera</span>
+          <span>Camera these photos are from</span>
           <select className="input" value={cameraId} onChange={(e) => setCameraId(e.target.value)}>
             {rows.cameras.map((c) => (
               <option key={c.id} value={c.id}>
@@ -220,39 +316,54 @@ export function TrailCam({ tz }: { tz: string }) {
           </select>
         </label>
         <label className={`btn primary block file-btn ${busy ? 'disabled' : ''}`}>
-          {busy ? 'Importing…' : '📷 Choose photos'}
+          {busy ? 'Importing…' : '📷 Choose photos or ZIP'}
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,.zip,application/zip"
             multiple
             hidden
             disabled={busy}
-            onChange={async (e) => {
+            onChange={(e) => {
               const files = [...(e.target.files ?? [])];
               e.target.value = '';
-              if (!files.length) return;
-              setBusy(true);
-              try {
-                await importPhotos({ files, cameraId: cameraId || null, tz, repo, aiTier: aiOn ? settings.aiTier : 'off', deer: rows.deer, sightings: rows.sightings, save: (s) => save('sightings', s), onProgress: setProgress });
-              } finally {
-                setBusy(false);
-              }
+              runImport(files);
             }}
           />
         </label>
-        {progress.length > 0 && (
-          <ul className="progress small">
-            {progress.map((p, i) => (
-              <li key={i} className={p.state}>
-                {p.state === 'done' ? '✓' : p.state === 'error' ? '✕' : '…'} {p.name} {p.state !== 'done' && p.state !== 'error' ? `(${p.state})` : ''} {p.message}
-              </li>
-            ))}
-          </ul>
+        {folderSupported && (
+          <label className={`btn block file-btn folder-btn ${busy ? 'disabled' : ''}`}>
+            📁 Choose a whole folder
+            <input
+              type="file"
+              hidden
+              disabled={busy}
+              ref={(el) => el?.setAttribute('webkitdirectory', '')}
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.target.value = '';
+                runImport(files);
+              }}
+            />
+          </label>
         )}
+        <p className="small muted drop-hint">On a computer you can also drag photos, folders, or ZIP files onto this box.</p>
+        <p className="small muted">
+          {aiOn ? 'The AI suggests what is in each photo, and you confirm it.' : 'You pick which buck is in each photo. AI identification is an optional upgrade on the Account tab.'}
+        </p>
+        {notice && <p className="small warn-text">{notice}</p>}
+        {progress.length > 0 && <ImportStatus progress={progress} summary={summary} />}
       </section>
 
       {pending.length > 0 && (
         <>
+          {confident.length > 0 && (
+            <div className="banner">
+              The AI is confident about {confident.length} photo{confident.length === 1 ? '' : 's'} (a strong match to a known deer, or an empty frame).{' '}
+              <button className="btn small primary" onClick={acceptConfident}>
+                Accept all {confident.length}
+              </button>
+            </div>
+          )}
           <div className="section-head">
             <h2>To review ({pending.length})</h2>
             {empties.length > 0 && (
@@ -269,6 +380,7 @@ export function TrailCam({ tz }: { tz: string }) {
               </button>
             )}
           </div>
+          {pending.length > 20 && <p className="small muted">Showing the 20 newest. More appear as you review these.</p>}
           {pending.slice(0, 20).map((s) => (
             // Re-mount when the AI result or time arrives so its suggestions pre-fill the form.
             <ReviewCard key={`${s.id}:${s.ai ? 'ai' : ''}:${s.taken_at}`} s={s} tz={tz} onZoom={setZoom} />

@@ -67,6 +67,7 @@ create table if not exists public.sightings (
   taken_at timestamptz not null,
   time_source text not null default 'manual',
   photo_path text,
+  photo_hash text,
   kind text not null default 'unknown',
   status text not null default 'pending',
   ai jsonb,
@@ -75,7 +76,11 @@ create table if not exists public.sightings (
   created_at timestamptz not null default now()
 );
 
+-- Added after the first release; safe if the column already exists.
+alter table public.sightings add column if not exists photo_hash text;
+
 create index if not exists sightings_user_deer on public.sightings (user_id, deer_id);
+create index if not exists sightings_user_hash on public.sightings (user_id, photo_hash);
 create index if not exists sightings_user_taken on public.sightings (user_id, taken_at);
 
 -- Row-level security: each user only sees their own rows.
