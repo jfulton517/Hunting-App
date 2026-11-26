@@ -17,7 +17,7 @@ export function Photo({ path, alt, className, onClick }: { path: string | null; 
 }
 
 /** Full-screen photo viewer, with an optional delete button. */
-export function Lightbox({ path, onClose, onDelete, caption }: { path: string; onClose: () => void; onDelete?: () => Promise<void> | void; caption?: string }) {
+export function Lightbox({ path, onClose, onDelete, onEdit, caption }: { path: string; onClose: () => void; onDelete?: () => Promise<void> | void; onEdit?: () => void; caption?: string }) {
   const [busy, setBusy] = useState(false);
   return (
     <div className="lightbox" onClick={onClose} role="dialog" aria-label="Photo">
@@ -25,6 +25,17 @@ export function Lightbox({ path, onClose, onDelete, caption }: { path: string; o
       <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
         {caption && <span className="small">{caption}</span>}
         <span className="lightbox-actions">
+          {onEdit && (
+            <button
+              className="btn small primary"
+              onClick={() => {
+                onEdit();
+                onClose();
+              }}
+            >
+              ✏️ Edit
+            </button>
+          )}
           {onDelete && (
             <button
               className="btn small danger-outline"

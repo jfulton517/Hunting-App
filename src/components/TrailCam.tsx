@@ -8,6 +8,7 @@ import { AnalyzePhotos } from './AnalyzePhotos';
 import { CameraInsights, type ForecastCtx } from './CameraInsights';
 import { describeConditions, fillConditions } from '../lib/conditions';
 import { Duplicates, useDeletePhotos } from './Duplicates';
+import { EditPhoto } from './EditPhoto';
 import { Lightbox, Photo } from './Photo';
 
 const KINDS: { value: AnimalKind; label: string }[] = [
@@ -237,6 +238,7 @@ export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [zoom, setZoom] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Sighting | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [shown, setShown] = useState(60);
@@ -522,8 +524,13 @@ export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
             const z = rows.sightings.find((x) => x.photo_path === zoom);
             return z ? () => deletePhotos([z]) : undefined;
           })()}
+          onEdit={(() => {
+            const z = rows.sightings.find((x) => x.photo_path === zoom && x.status === 'confirmed');
+            return z ? () => setEditing(z) : undefined;
+          })()}
         />
       )}
+      {editing && <EditPhoto s={editing} tz={tz} fallback={fc?.place ?? null} onClose={() => setEditing(null)} onDelete={() => deletePhotos([editing])} />}
     </div>
   );
 }
