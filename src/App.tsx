@@ -41,8 +41,7 @@ export default function App() {
 }
 
 function Gate() {
-  const { auth } = useData();
-  const [recovery, setRecovery] = useState(() => window.location.hash.includes('type=recovery'));
+  const { auth, passwordRecovery, endPasswordRecovery } = useData();
   if (auth === 'loading')
     return (
       <div className="app">
@@ -52,11 +51,11 @@ function Gate() {
   if (auth === 'signed-out') return <AuthScreen />;
   return (
     <>
-      {recovery && (
+      {passwordRecovery && (
         <div className="app">
           <NewPasswordForm
             onDone={() => {
-              setRecovery(false);
+              endPasswordRecovery();
               history.replaceState(null, '', window.location.pathname);
             }}
           />

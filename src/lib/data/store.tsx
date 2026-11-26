@@ -67,6 +67,9 @@ interface DataState {
   signOut(): Promise<void>;
   /** Copy records saved on this device into the signed-in account. */
   importLocal(): Promise<number>;
+  /** The user arrived from a password-reset email and should choose a new password. */
+  passwordRecovery: boolean;
+  endPasswordRecovery(): void;
   localCount: number;
 }
 
@@ -91,6 +94,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [offline, setOffline] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [pendingSync, setPendingSync] = useState(0);
+  const [passwordRecovery, setPasswordRecovery] = useState(() => typeof window !== 'undefined' && window.location.hash.includes('type=recovery'));
   const queueRef = useRef<OutboxOp[]>([]);
   const flushing = useRef(false);
 
@@ -119,6 +123,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       goOffline(!!error || !navigator.onLine);
     });
     const { data } = sb.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       if (s) {
         setSession(s);
         setOfflineUser(null);
@@ -390,6 +395,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     },
     importLocal,
     localCount,
+    passwordRecovery,
+    endPasswordRecovery: () => setPasswordRecovery(false),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

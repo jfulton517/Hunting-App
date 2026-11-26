@@ -138,13 +138,18 @@ const BUCKET = 'trailcam';
 async function errorText(error: { message?: string; context?: unknown }, fallback: string): Promise<string> {
   const ctx = error.context as Response | undefined;
   if (ctx && typeof ctx.json === 'function') {
+    if (ctx.status === 404) return "The AI isn't installed on the server yet (SETUP.md, Part 2).";
+    if (ctx.status === 401) return 'Your sign-in has expired. Sign out and back in, then try again.';
     try {
       const body = await ctx.clone().json();
       if (body?.error) return String(body.error);
+      if (body?.message) return String(body.message);
     } catch {
       /* not JSON */
     }
+    if (ctx.status >= 500) return `The AI server had a problem (${ctx.status}). Try again in a minute.`;
   }
+  if (/non-2xx/i.test(error.message ?? '')) return fallback;
   return error.message || fallback;
 }
 
@@ -222,8 +227,9 @@ export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
     async checkAi() {
       const { data, error } = await sb.functions.invoke('identify-deer', { body: { ping: true } });
       if (error) {
-        const msg = await errorText(error, '');
-        return { ok: false, message: /not found|404|Failed to send/i.test(msg + error.name) ? "The AI function isn't deployed yet (see SETUP.md, Part 2)." : msg || 'AI check failed.' };
+        const msg = await errorText(error, 'AI check failed.');
+        if (/ANTHROPIC_API_KEY/.test(msg)) return { ok: false, message: 'Almost there: add your Anthropic API key to Supabase as a secret named ANTHROPIC_API_KEY (SETUP.md, Part 2, step 5).' };
+        return { ok: false, message: /Failed to send/i.test(msg + error.name) ? "Couldn't reach the AI server. Check your signal and try again." : msg };
       }
       return data?.ok ? { ok: true, message: 'AI is set up and ready.' } : { ok: false, message: data?.error ?? 'AI check failed.' };
     },
