@@ -86,6 +86,8 @@ export interface Sighting extends Base {
   taken_at: string; // ISO timestamp
   time_source: 'exif' | 'stamp' | 'file' | 'manual';
   photo_path: string | null;
+  /** Fingerprint of the original file, used to skip duplicate uploads */
+  photo_hash?: string | null;
   kind: AnimalKind;
   status: 'pending' | 'confirmed';
   ai: AiResult | null;

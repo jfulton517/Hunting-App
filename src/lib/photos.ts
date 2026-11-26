@@ -35,8 +35,39 @@ export async function shrinkImage(file: Blob, max = 1280, quality = 0.8): Promis
 
 export interface ImportProgress {
   name: string;
-  state: 'reading' | 'uploading' | 'analyzing' | 'done' | 'error';
+  state: 'waiting' | 'reading' | 'uploading' | 'analyzing' | 'done' | 'skipped' | 'error';
   message?: string;
+}
+
+const IMAGE_RE = /\.(jpe?g|png|webp)$/i;
+const isZip = (f: File) => /\.zip$/i.test(f.name) || f.type === 'application/zip' || f.type === 'application/x-zip-compressed';
+
+/** Turn the user's selection (photos, ZIP downloads, folders) into a flat list of image files. */
+export async function expandFiles(files: File[]): Promise<{ images: File[]; ignored: number }> {
+  const images: File[] = [];
+  let ignored = 0;
+  for (const f of files) {
+    if (isZip(f)) {
+      const { unzip } = await import('fflate');
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) =>
+        unzip(bytes, { filter: (e) => IMAGE_RE.test(e.name) && !/(^|\/)(__MACOSX|\._)/.test(e.name) }, (err, data) => (err ? reject(err) : resolve(data))),
+      );
+      for (const [name, data] of Object.entries(entries)) {
+        const type = /\.png$/i.test(name) ? 'image/png' : /\.webp$/i.test(name) ? 'image/webp' : 'image/jpeg';
+        images.push(new File([data as BlobPart], name.split('/').pop()!, { type, lastModified: f.lastModified }));
+      }
+    } else if (f.type.startsWith('image/') || IMAGE_RE.test(f.name)) {
+      if (!f.name.startsWith('._')) images.push(f);
+    } else ignored++;
+  }
+  return { images, ignored };
+}
+
+/** Content fingerprint so the same photo is never imported twice. */
+export async function fingerprint(file: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  return [...new Uint8Array(digest).slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** Reference photo for each known deer (to show the AI what he looks like). */
@@ -68,9 +99,16 @@ export async function analyzeSighting(repo: Repo, tier: AiTier, sighting: Sighti
   return next;
 }
 
+export interface ImportSummary {
+  imported: number;
+  skipped: number;
+  failed: number;
+}
+
 /**
  * Import photos for one camera. Each photo becomes a "pending" sighting that the user
  * reviews; AI suggestions (when available) are attached but never applied without confirmation.
+ * Photos already imported (same file contents) are skipped.
  */
 export async function importPhotos(opts: {
   files: File[];
@@ -82,13 +120,27 @@ export async function importPhotos(opts: {
   sightings: Sighting[];
   save: (s: Sighting) => Promise<void>;
   onProgress: (p: ImportProgress[]) => void;
-}): Promise<void> {
-  const progress: ImportProgress[] = opts.files.map((f) => ({ name: f.name, state: 'reading' }));
+}): Promise<ImportSummary> {
+  const progress: ImportProgress[] = opts.files.map((f) => ({ name: f.name, state: 'waiting' }));
+  let pendingEmit = false;
+  const emit = () => {
+    // Throttle re-renders for big batches.
+    if (pendingEmit) return;
+    pendingEmit = true;
+    setTimeout(() => {
+      pendingEmit = false;
+      opts.onProgress([...progress]);
+    }, 150);
+  };
   const update = (i: number, p: Partial<ImportProgress>) => {
     progress[i] = { ...progress[i], ...p };
-    opts.onProgress([...progress]);
+    emit();
   };
   opts.onProgress([...progress]);
+
+  const seen = new Set(opts.sightings.map((s) => s.photo_hash).filter(Boolean) as string[]);
+  const summary: ImportSummary = { imported: 0, skipped: 0, failed: 0 };
+  const useAi = !!opts.repo.identify && opts.aiTier !== 'off';
 
   let next = 0;
   const worker = async () => {
@@ -96,6 +148,14 @@ export async function importPhotos(opts: {
       const i = next++;
       const file = opts.files[i];
       try {
+        update(i, { state: 'reading' });
+        const hash = await fingerprint(file);
+        if (seen.has(hash)) {
+          summary.skipped++;
+          update(i, { state: 'skipped', message: 'already imported' });
+          continue;
+        }
+        seen.add(hash);
         const exif = await exifTakenAt(file, opts.tz);
         const blob = await shrinkImage(file);
         const id = newId();
@@ -108,6 +168,7 @@ export async function importPhotos(opts: {
           taken_at: new Date(exif ?? file.lastModified ?? Date.now()).toISOString(),
           time_source: exif ? 'exif' : 'file',
           photo_path,
+          photo_hash: hash,
           kind: 'unknown',
           status: 'pending',
           ai: null,
@@ -115,21 +176,25 @@ export async function importPhotos(opts: {
           notes: '',
         };
         await opts.save(sighting);
-        if (opts.repo.identify && opts.aiTier !== 'off') {
+        summary.imported++;
+        if (useAi) {
           update(i, { state: 'analyzing' });
           try {
             sighting = await analyzeSighting(opts.repo, opts.aiTier, sighting, opts.deer, opts.sightings, opts.tz);
             await opts.save(sighting);
           } catch (e) {
-            update(i, { state: 'done', message: `Saved; AI couldn't read it (${(e as Error).message})` });
+            update(i, { state: 'done', message: `saved, but the AI couldn't read it (${(e as Error).message})` });
             continue;
           }
         }
         update(i, { state: 'done' });
       } catch (e) {
+        summary.failed++;
         update(i, { state: 'error', message: (e as Error).message });
       }
     }
   };
-  await Promise.all([worker(), worker()]);
+  await Promise.all([worker(), worker(), worker()]);
+  opts.onProgress([...progress]);
+  return summary;
 }

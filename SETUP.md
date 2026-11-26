@@ -69,10 +69,20 @@ That's it. Photos you add on the **Trail Cam** tab now get an AI suggestion that
 
 ## Getting photos from Strike Force Wireless
 
-Browning doesn't offer a way for other apps to connect to Strike Force Wireless, so photos come in through your phone's photo library:
+Browning doesn't offer a way for other apps to sign in to Strike Force Wireless, so photos come in through a download:
 
-1. In **Strike Force Wireless**, open a photo, tap **Share**, then **Save Image**. You can also select several photos and save them together.
-2. In Hunt Forecast, go to **Trail Cam**, choose the camera, then **Choose photos** and pick the saved photos.
-3. Review each photo. The AI reads the date, time, and temperature from the info strip along the bottom of each Browning photo, and suggests a buck. Confirm it or correct it.
+**On a computer (best for lots of photos)**
+1. Sign in at **strikeforcewireless.com** and open **Photos**.
+2. Filter to one camera, click **Select All** (top right), and download.
+3. In Hunt Forecast, go to **Trail Cam**, pick that camera, then drag the downloaded photos, folder, or **ZIP file** onto the Add Photos box. You can also use **Choose photos or ZIP** or **Choose a whole folder**.
 
-After about 3 confirmed sightings, a buck's page starts showing **his pattern** and **the best upcoming times and stands** to hunt him. Mark a buck as your **target** with the ★ button.
+**On your phone**
+1. In the **Strike Force Wireless** app, tap **Select All**, then **Share → Save Images**.
+2. In Hunt Forecast, go to **Trail Cam**, pick the camera, tap **Choose photos or ZIP**, and select the saved photos.
+
+**Good to know**
+- **Duplicates are skipped automatically**, so you can re-download everything each time without double-counting sightings.
+- **Free plan:** you pick the buck in each photo. With the **AI upgrade**, the AI suggests the buck and reads the date and time from each photo's info strip. Before a large batch is sent to the AI, the app shows the estimated cost and lets you import without AI instead.
+- After about 3 confirmed sightings, a buck's page starts showing **his pattern** and **the best upcoming times and stands** to hunt him. Mark your **target** with the ★ button.
+
+> **Already ran `supabase/schema.sql` before this update?** Run it once more (SQL Editor → paste → Run). It's safe to re-run, and it adds the column used to skip duplicate photos.
