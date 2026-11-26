@@ -102,6 +102,11 @@ declare t text;
 begin
   foreach t in array array['profiles', 'places', 'stands', 'cameras', 'deer', 'sightings', 'hunts'] loop
     execute format('alter table public.%I enable row level security', t);
+    -- Newer Supabase projects don't expose new tables to the API automatically: signed-in
+    -- users need explicit access (the policy below still limits them to their own rows).
+    -- Anonymous visitors get none.
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+    execute format('revoke all on public.%I from anon', t);
     execute format('drop policy if exists "own rows" on public.%I', t);
     execute format(
       'create policy "own rows" on public.%I for all to authenticated
