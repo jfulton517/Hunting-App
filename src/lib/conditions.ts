@@ -22,14 +22,18 @@ export async function fillConditions(
   fallback: LatLon | null,
   onProgress?: (done: number, total: number) => void,
   now = Date.now(),
-): Promise<{ updated: Sighting[]; missing: number }> {
-  const todo = sightings.filter((s) => !s.weather && Date.parse(s.taken_at) < now - HOUR);
+): Promise<{ updated: Sighting[]; missing: number; noLocation: number; future: number }> {
+  // Photos taken minutes ago are fine: the weather service has the current hour.
+  const pending = sightings.filter((s) => !s.weather);
+  const future = pending.filter((s) => Date.parse(s.taken_at) > now + 10 * 60_000).length;
+  const todo = pending.filter((s) => Date.parse(s.taken_at) <= now + 10 * 60_000);
   const groups = new Map<string, { loc: LatLon; items: Sighting[] }>();
   let missing = 0;
+  let noLocation = 0;
   for (const s of todo) {
     const loc = sightingLocation(s, cameras, fallback);
     if (!loc) {
-      missing++;
+      noLocation++;
       continue;
     }
     const key = `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`;
@@ -49,7 +53,7 @@ export async function fillConditions(
       onProgress?.(++done, todo.length);
     }
   }
-  return { updated, missing };
+  return { updated, missing, noLocation, future };
 }
 
 const trendArrow = (h: number) => (h > 0.7 ? '↑' : h < -0.7 ? '↓' : '→');
