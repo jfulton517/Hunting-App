@@ -6,6 +6,7 @@ import { recommendForDeer } from '../lib/patterns';
 import { huntability } from '../lib/scoring';
 import { formatDay, formatTime } from '../lib/time';
 import { useSightingPattern } from '../lib/useDeerAnalysis';
+import { groupVisits } from '../lib/visits';
 import { compass, type HourWeather } from '../lib/weather';
 import { scoreColor, WindArrow } from './ui';
 
@@ -29,8 +30,8 @@ export function CameraInsights({ camera, fc }: { camera: Camera; fc: ForecastCtx
     () => rows.sightings.filter((s) => s.camera_id === camera.id && s.status === 'confirmed' && ['buck', 'doe', 'fawn'].includes(s.kind)).sort((a, b) => Date.parse(a.taken_at) - Date.parse(b.taken_at)),
     [rows.sightings, camera.id],
   );
-  // Use buck photos when there are enough; otherwise all deer activity.
-  const useBucks = bucks.length >= 3;
+  // Use buck activity when there are enough separate visits; otherwise all deer activity.
+  const useBucks = groupVisits(bucks).length >= 3;
   const set = useBucks ? bucks : deer;
   const { pattern, status } = useSightingPattern(set, fc.place);
   const recs = useMemo(
@@ -50,7 +51,7 @@ export function CameraInsights({ camera, fc }: { camera: Camera; fc: ForecastCtx
       ) : (
         pattern.summary.map((line) => (
           <p key={line} className="small">
-            {line.replace(/ confirmed sighting/, ` confirmed ${subject} photo`)}
+            {line.replace(/ separate sighting/, ` separate ${subject} sighting`)}
           </p>
         ))
       )}

@@ -52,13 +52,15 @@ export function AnalyzePhotos({ tz, fallback }: { tz: string; fallback: { lat: n
       const latest = new Map(rows.sightings.map((s) => [s.id, s]));
       for (const f of allFixed) latest.set(f.id, f);
       const todo = [...latest.values()].filter((s) => !s.weather && s.kind !== 'none' && (s.time_source !== 'file' || !s.photo_path));
-      const { updated, missing } = await fillConditions(todo, rows.cameras, fallback, (d, n) => setStatus(`Matching weather: ${d} of ${n}…`));
+      const { updated, missing, noLocation, future } = await fillConditions(todo, rows.cameras, fallback, (d, n) => setStatus(`Matching weather: ${d} of ${n}…`));
       if (updated.length) await saveMany('sightings', updated);
 
       const parts = [`Done. ${updated.length} photo${updated.length === 1 ? ' now has' : 's now have'} weather conditions.`];
       if (needsTime.length) parts.push(`Read the date stamp on ${needsTime.length - unreadable} of ${needsTime.length}.`);
       if (unreadable) parts.push(`${unreadable} stamp${unreadable === 1 ? " couldn't" : "s couldn't"} be read. Check those times on the photo cards below.`);
-      if (missing) parts.push(`${missing} need${missing === 1 ? 's' : ''} a camera location or a time that's not in the future.`);
+      if (noLocation) parts.push(`${noLocation} need a location: set your camera locations under Account → Trail cameras, or pick a hunting location.`);
+      if (future) parts.push(`${future} ha${future === 1 ? 's a time' : 've times'} in the future. Check the date and time on ${future === 1 ? 'that photo' : 'those photos'}.`);
+      if (missing) parts.push(`${missing} couldn't be matched to weather data. Try again later.`);
       setStatus(parts.join(' '));
     } catch (e) {
       setStatus(`Analysis stopped: ${(e as Error).message}`);

@@ -7,6 +7,7 @@ import { recommendForDeer } from '../lib/patterns';
 import { huntability } from '../lib/scoring';
 import { DAY, formatDay, formatTime } from '../lib/time';
 import { useDeerAnalysis } from '../lib/useDeerAnalysis';
+import { groupVisits } from '../lib/visits';
 import { compass, type HourWeather } from '../lib/weather';
 import { Lightbox, Photo } from './Photo';
 import { scoreColor, WindArrow } from './ui';
@@ -201,7 +202,9 @@ function DeerDetail({ deer, fc, onBack }: { deer: Deer; fc: ForecastCtx; onBack:
       </section>
 
       <section>
-        <h3>Sightings ({sightings.length})</h3>
+        <h3>
+          Photos ({sightings.length}) · {groupVisits(sightings).length} separate sightings
+        </h3>
         <div className="gallery">
           {[...sightings].reverse().map((s) => (
             <figure key={s.id} onClick={() => s.photo_path && setZoom(s.photo_path)}>
@@ -232,7 +235,7 @@ export function Bucks({ fc, openId, onOpen }: { fc: ForecastCtx; openId: string 
   const stats = (d: Deer) => {
     const s = rows.sightings.filter((x) => x.deer_id === d.id && x.status === 'confirmed');
     const last = s.reduce((m, x) => Math.max(m, Date.parse(x.taken_at)), 0);
-    return { n: s.length, last, ref: rows.sightings.find((x) => x.id === d.reference_sighting_id) ?? s[s.length - 1] };
+    return { n: groupVisits(s).length, photos: s.length, last, ref: rows.sightings.find((x) => x.id === d.reference_sighting_id) ?? s[s.length - 1] };
   };
   const list = rows.deer
     .filter((d) => d.sex === show)
@@ -259,7 +262,7 @@ export function Bucks({ fc, openId, onOpen }: { fc: ForecastCtx; openId: string 
       {list.length === 0 && (
         <p className="muted small">No {show}s yet. Add trail-cam photos on the Trail Cam tab, and choose "+ New {show} from this photo" to start a profile.</p>
       )}
-      {list.map(({ d, n, last, ref }) => (
+      {list.map(({ d, n, photos, last, ref }) => (
         <button key={d.id} className={`card deer-card ${d.status !== 'active' ? 'inactive' : ''}`} onClick={() => onOpen(d.id)}>
           <Photo path={ref?.photo_path ?? null} alt={d.name} className="deer-thumb" />
           <div className="deer-card-main">
@@ -269,6 +272,7 @@ export function Bucks({ fc, openId, onOpen }: { fc: ForecastCtx; openId: string 
             <span className="small muted">{[d.points ? `${d.points} pts` : null, d.age_class !== 'unknown' ? d.age_class : null, d.status !== 'active' ? d.status : null].filter(Boolean).join(' · ')}</span>
             <span className="small">
               {n} sighting{n === 1 ? '' : 's'}
+              {photos > n ? ` (${photos} photos)` : ''}
               {last ? ` · last ${ago(last)}` : ''}
             </span>
           </div>

@@ -16,11 +16,38 @@ export function Photo({ path, alt, className, onClick }: { path: string | null; 
   return <img className={`photo ${className ?? ''}`} src={url} alt={alt} loading="lazy" onClick={onClick} />;
 }
 
-/** Full-screen photo viewer. */
-export function Lightbox({ path, onClose }: { path: string; onClose: () => void }) {
+/** Full-screen photo viewer, with an optional delete button. */
+export function Lightbox({ path, onClose, onDelete, caption }: { path: string; onClose: () => void; onDelete?: () => Promise<void> | void; caption?: string }) {
+  const [busy, setBusy] = useState(false);
   return (
     <div className="lightbox" onClick={onClose} role="dialog" aria-label="Photo">
       <Photo path={path} alt="Trail camera photo" />
+      <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
+        {caption && <span className="small">{caption}</span>}
+        <span className="lightbox-actions">
+          {onDelete && (
+            <button
+              className="btn small danger-outline"
+              disabled={busy}
+              onClick={async () => {
+                if (!confirm('Delete this photo? This can’t be undone.')) return;
+                setBusy(true);
+                try {
+                  await onDelete();
+                  onClose();
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              🗑 Delete
+            </button>
+          )}
+          <button className="btn small" onClick={onClose}>
+            Close
+          </button>
+        </span>
+      </div>
     </div>
   );
 }

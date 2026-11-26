@@ -1372,3 +1372,104 @@ select.input {
   font-size: 0.7rem;
   font-weight: 400;
 }
+
+/* ---------- delete & duplicates ---------- */
+.lightbox {
+  flex-direction: column;
+  gap: 10px;
+}
+.lightbox-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 720px;
+  color: #fff;
+}
+.lightbox-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.select-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  position: sticky;
+  top: 4px;
+  z-index: 3;
+}
+.select-bar .small:first-child {
+  margin-right: auto;
+}
+.gallery figure.selectable {
+  position: relative;
+  cursor: pointer;
+}
+.gallery figure.selectable .photo {
+  opacity: 0.75;
+}
+.gallery figure.picked .photo {
+  opacity: 1;
+  outline: 3px solid var(--accent);
+}
+.gallery .pick {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  z-index: 1;
+}
+.gallery figure.picked .pick {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.dup-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.dup-group {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.dup-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 6px 0;
+}
+.dup-row figure {
+  margin: 0;
+}
+.dup-row .photo {
+  aspect-ratio: 4 / 3;
+}
+.dup-row figure.keep .photo {
+  outline: 3px solid var(--score-excellent);
+}
+.dup-row figure.drop .photo {
+  outline: 3px solid var(--score-poor);
+  opacity: 0.8;
+}
+.duplicates .btn.block {
+  margin: 8px 0;
+}

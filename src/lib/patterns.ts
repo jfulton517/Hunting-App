@@ -32,10 +32,14 @@ export interface PatternObs {
   t: number;
   cameraId: string | null;
   c: SightingConditions;
+  /** Photos in this visit (a burst of photos is one sighting) */
+  photos?: number;
 }
 
 export interface DeerPattern {
+  /** Separate sightings (visits), not photos */
   n: number;
+  photos: number;
   daylight: number;
   lastSeen: number | null;
   confidence: 'none' | 'low' | 'medium' | 'high';
@@ -110,6 +114,7 @@ export function learnPattern(obs: PatternObs[], background: SightingConditions[]
   const confidence = n < 3 ? 'none' : n < 6 ? 'low' : n < 12 ? 'medium' : 'high';
   const pattern: DeerPattern = {
     n,
+    photos: obs.reduce((sum, o) => sum + (o.photos ?? 1), 0),
     daylight,
     lastSeen: n ? Math.max(...obs.map((o) => o.t)) : null,
     confidence,
@@ -134,7 +139,7 @@ function favored<K extends string>(a: Affinity<K>, minCount = 2): K[] {
 function summarize(p: DeerPattern): string[] {
   if (p.n === 0) return ['No confirmed sightings yet. Tag trail-cam photos of this deer to learn his pattern.'];
   const out: string[] = [];
-  out.push(`${p.n} confirmed sighting${p.n === 1 ? '' : 's'}, ${p.daylight} in daylight.`);
+  out.push(`${p.n} separate sighting${p.n === 1 ? '' : 's'}${p.photos > p.n ? ` (${p.photos} photos)` : ''}, ${p.daylight} in daylight.`);
   if (p.n >= 3 && p.daylight === 0)
     out.push("Every visit so far has been at night. That's typical of a mature buck. Your best odds are cold fronts, the chasing phase of the rut, or setting up closer to his bedding.");
   const t = favored(p.time).filter((k) => k !== 'night');
@@ -148,7 +153,7 @@ function summarize(p: DeerPattern): string[] {
   else if (tp.includes('warmer')) out.push('Has moved on warmer-than-yesterday days.');
   const m = favored(p.moon);
   if (m.length) out.push(`Seen more often around ${m[0]} moon phases.`);
-  if (p.confidence === 'none') out.push('He needs at least 3 tagged sightings before the app can make recommendations.');
+  if (p.confidence === 'none') out.push('He needs at least 3 separate sightings before the app can make recommendations. Several photos from one walk past the camera count as one.');
   else if (p.confidence === 'low') out.push('Pattern confidence is low. It gets better with every photo you tag.');
   return out;
 }
@@ -190,8 +195,9 @@ function forecastConditions(t: number, wx: Map<number, HourWeather>, day: DayFor
 function pickStand(camera: Camera | null, stands: Stand[], windDeg: number | null): { stand: Stand | null; setup: string } {
   if (!camera) return { stand: null, setup: 'Set a location for his cameras to get stand recommendations.' };
   const dir = windDeg != null ? compass8(windDeg) : null;
+  const linked = camera.stand_id ? stands.find((s) => s.id === camera.stand_id) ?? null : null;
   const nearby = stands
-    .map((s) => ({ s, d: camera.lat != null && s.lat != null && s.lon != null ? distanceM(s.lat, s.lon, camera.lat, camera.lon!) : null }))
+    .map((s) => ({ s, d: s.id === linked?.id ? 0 : camera.lat != null && s.lat != null && s.lon != null ? distanceM(s.lat, s.lon, camera.lat, camera.lon!) : null }))
     .filter(({ s, d }) => (d != null ? d <= 1200 : s.place_id != null && s.place_id === camera.place_id));
   const ok = nearby.filter(({ s }) => {
     if (dir && s.winds.length && !s.winds.includes(dir)) return false;
@@ -202,8 +208,14 @@ function pickStand(camera: Camera | null, stands: Stand[], windDeg: number | nul
   const side = windDeg != null ? compass((windDeg + 180) % 360) : null;
   if (ok.length) {
     const { s, d } = ok[0];
-    return { stand: s, setup: `${s.name}${d != null ? `, ${formatDistance(d)} from ${camera.name}` : ''}. The ${dir ?? 'forecast'} wind keeps your scent off his travel route.` };
+    const where = s.id === linked?.id ? `, the stand at ${camera.name}` : d != null ? `, ${formatDistance(d)} from ${camera.name}` : '';
+    return { stand: s, setup: `${s.name}${where}. The ${dir ?? 'forecast'} wind keeps your scent off his travel route.` };
   }
+  if (linked && dir)
+    return {
+      stand: null,
+      setup: `${linked.name} (the stand at ${camera.name}) is set for ${linked.winds.length ? linked.winds.join('/') : 'no'} winds, and this is a ${dir} wind. Hunt it on a better wind, or set up on the ${compass((windDeg! + 180) % 360)} (downwind) side of the camera.`,
+    };
   return {
     stand: null,
     setup: side ? `None of your saved stands fit a ${compass(windDeg!)} wind near ${camera.name}. Set up on the ${side} (downwind) side of the camera area.` : `Hunt near ${camera.name}.`,

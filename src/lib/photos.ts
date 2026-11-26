@@ -2,6 +2,7 @@
 import exifr from 'exifr';
 import type { Repo } from './data/repo';
 import { newId, type AiTier, type AnimalKind, type Deer, type Sighting } from './data/types';
+import { perceptualHash } from './dedupe';
 import { readStamp } from './stamp';
 import { zonedToEpoch } from './time';
 
@@ -172,6 +173,15 @@ export async function importPhotos(opts: {
           }
         }
         const blob = await shrinkImage(file);
+        const takenAt = new Date(exif ?? stamp ?? file.lastModified ?? Date.now()).toISOString();
+        // Look-alike photos (burst shots, standard + HD copies) are kept. Patterns and
+        // recommendations count them as one visit. The fingerprint powers the optional cleanup tool.
+        let phash: string | null = null;
+        try {
+          phash = await perceptualHash(blob);
+        } catch {
+          phash = null;
+        }
         const id = newId();
         update(i, { state: 'uploading', message: undefined });
         const photo_path = await opts.repo.uploadPhoto(id, blob);
@@ -179,10 +189,11 @@ export async function importPhotos(opts: {
           id,
           camera_id: opts.cameraId,
           deer_id: null,
-          taken_at: new Date(exif ?? stamp ?? file.lastModified ?? Date.now()).toISOString(),
+          taken_at: takenAt,
           time_source: exif ? 'exif' : stamp ? 'stamp' : 'file',
           photo_path,
           photo_hash: hash,
+          photo_phash: phash,
           kind: 'unknown',
           status: 'pending',
           ai: null,

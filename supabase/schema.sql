@@ -68,6 +68,7 @@ create table if not exists public.sightings (
   time_source text not null default 'manual',
   photo_path text,
   photo_hash text,
+  photo_phash text,
   kind text not null default 'unknown',
   status text not null default 'pending',
   ai jsonb,
@@ -91,6 +92,8 @@ create table if not exists public.hunts (
 
 -- Added after the first release; safe if the column already exists.
 alter table public.sightings add column if not exists photo_hash text;
+alter table public.sightings add column if not exists photo_phash text;
+alter table public.cameras add column if not exists stand_id uuid references public.stands on delete set null;
 
 create index if not exists sightings_user_deer on public.sightings (user_id, deer_id);
 create index if not exists sightings_user_hash on public.sightings (user_id, photo_hash);
