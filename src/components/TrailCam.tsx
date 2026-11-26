@@ -455,6 +455,35 @@ export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
           <button className="btn small ghost" onClick={() => setSelected(new Set(confirmed.slice(0, shown).map((s) => s.id)))}>
             Select all shown
           </button>
+          <select
+            className="input assign-select"
+            value=""
+            disabled={!selected.size}
+            aria-label="Assign selected photos to a deer"
+            onChange={async (e) => {
+              const deerId = e.target.value;
+              if (!deerId) return;
+              const deer = rows.deer.find((d) => d.id === deerId);
+              const picked = rows.sightings.filter((s) => selected.has(s.id));
+              await saveMany(
+                'sightings',
+                picked.map((s) => ({ ...s, deer_id: deerId, kind: deer?.sex === 'doe' ? 'doe' : 'buck', status: 'confirmed' as const })),
+              );
+              setSelected(new Set());
+              setSelecting(false);
+            }}
+          >
+            <option value="">Assign to…</option>
+            {rows.deer
+              .filter((d) => d.status === 'active')
+              .sort((x, y) => Number(y.is_target) - Number(x.is_target) || x.name.localeCompare(y.name))
+              .map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                  {d.is_target ? ' ★' : ''}
+                </option>
+              ))}
+          </select>
           <button
             className="btn small danger-outline"
             disabled={!selected.size}
