@@ -11,6 +11,8 @@ The app works without this setup: everything is saved on your phone only. These 
 | Basic AI | ≈ $1–2 per 1,000 photos | A smaller Claude model (Haiku) sorts photos (buck, doe, empty) and reads the date and time stamp. It is less reliable at telling similar bucks apart. |
 | Pro AI | ≈ 3–8¢ per photo | Claude Opus compares antlers against your known bucks, flags new bucks, and reads the stamp. |
 
+Both AI plans also unlock **Ask the coach** during a hunt: well under a penny per question on Basic, and a few cents on Pro.
+
 Choose the plan in the app under **Account → Upgrade: AI photo identification**. AI costs are billed by Anthropic to your own API account, with a spending limit you set.
 
 **Free-plan limits worth knowing**
@@ -56,6 +58,7 @@ Only needed for the Basic AI or Pro AI plan. Each photo is one request to Claude
    - Name it exactly `identify-deer`.
    - Delete the sample code, then paste the contents of [`supabase/functions/identify-deer/index.ts`](supabase/functions/identify-deer/index.ts). Use the **Copy raw file** button on GitHub.
    - Click **Deploy function**.
+   - Repeat for the **AI hunting coach**: deploy a second function named exactly `hunt-coach` with the contents of [`supabase/functions/hunt-coach/index.ts`](supabase/functions/hunt-coach/index.ts).
 5. In Supabase, go to **Edge Functions → Secrets** (or **Project Settings → Edge Functions**) and add a secret:
    - Name: `ANTHROPIC_API_KEY`
    - Value: the key from step 3

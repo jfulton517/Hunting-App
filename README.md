@@ -27,6 +27,16 @@ Each hour's score is **activity × weather × season** (0–100). Tap any hour t
 - **Days 17–56**: long-range outlook scored from sun, moon, solunar, and rut or season timing only. These are marked as estimates and ranked separately.
 - Temperature normals come from the last 5 years of observations (Open-Meteo archive).
 
+## Real-time hunting coach (Hunt tab)
+
+Start a hunt when you reach your stand, and the coach updates every 20 seconds until you walk out:
+- **Phase-by-phase guidance** for deer (prep, walk-in, settling in, morning prime, midday, evening, last light, walk-out) and spring or fall turkey (roost, fly-down, strut zone, late morning, afternoon, fly-up).
+- **Calling plan with a timer**, matched to the rut or gobbling phase (rattling, grunts, bleats, tree yelps, cackles, cutting), how often to call, and what to do when a buck or tom hangs up. Tap **I just called** to reset the timer.
+- **Stand advice:** ranks your stands for the live wind and keeps your scent off your target buck's camera area. It warns ahead of a wind shift and suggests where and when to move.
+- **Approach route, thermals, scent control, attractants and decoys** (with legality reminders), and safety.
+- **One-tap logging** (saw does, buck, target, hung up, bumped, gobble, harvest) that changes the advice, saved as a hunt log.
+- **Keep screen on** and a **red low-light mode** for the stand. **Ask the coach** (an AI chat) is part of the optional AI upgrade.
+
 ## Accounts, trail cameras & target bucks
 
 - **1–10 Huntability** scores, hour by hour and per day, in the style of HuntWise's HuntCast. 8 or higher is a great time to hunt.

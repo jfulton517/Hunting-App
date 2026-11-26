@@ -12,8 +12,8 @@ export function supabase(): SupabaseClient | null {
 }
 
 type Rows = { [T in Table]: TableRows[T][] };
-const EMPTY: Rows = { places: [], stands: [], cameras: [], deer: [], sightings: [] };
-const TABLES: Table[] = ['places', 'stands', 'cameras', 'deer', 'sightings'];
+const EMPTY: Rows = { places: [], stands: [], cameras: [], deer: [], sightings: [], hunts: [] };
+const TABLES: Table[] = ['places', 'stands', 'cameras', 'deer', 'sightings', 'hunts'];
 
 interface DataState {
   /** 'none' when accounts aren't configured (device-only mode) */

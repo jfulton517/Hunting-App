@@ -22,6 +22,8 @@ export interface Repo {
   deletePhoto(path: string): Promise<void>;
   /** AI photo identification; only available with an account (the API key lives on the server). */
   identify: ((req: IdentifyRequest) => Promise<AiResult>) | null;
+  /** AI hunting coach answer (upgrade). */
+  askCoach: ((req: { tier: Exclude<AiTier, 'off'>; question: string; situation: string; history: { q: string; a: string }[] }) => Promise<string>) | null;
   /** Checks that the AI server function is deployed and has its API key. */
   checkAi: (() => Promise<{ ok: boolean; message: string }>) | null;
 }
@@ -123,6 +125,7 @@ export function localRepo(): Repo {
       }
     },
     identify: null,
+    askCoach: null,
     checkAi: null,
   };
 }
@@ -207,6 +210,14 @@ export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
       });
       if (error) throw new Error(await errorText(error, 'Photo identification failed'));
       return data as AiResult;
+    },
+    async askCoach(body) {
+      const { data, error } = await sb.functions.invoke('hunt-coach', { body });
+      if (error) {
+        const msg = await errorText(error, 'The coach is unavailable');
+        throw new Error(/not found|404|Failed to send/i.test(msg + error.name) ? "The AI coach isn't deployed yet (see SETUP.md, Part 2)." : msg);
+      }
+      return String(data?.answer ?? '');
     },
     async checkAi() {
       const { data, error } = await sb.functions.invoke('identify-deer', { body: { ping: true } });

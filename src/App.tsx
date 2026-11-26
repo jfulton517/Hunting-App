@@ -5,6 +5,7 @@ import { BestDays } from './components/BestDays';
 import { Bucks } from './components/Bucks';
 import { DayDetail } from './components/DayDetail';
 import { DayStrip } from './components/DayStrip';
+import { HuntCoach } from './components/HuntCoach';
 import { LocationPicker } from './components/LocationPicker';
 import { TrailCam } from './components/TrailCam';
 import { DataProvider, useData } from './lib/data/store';
@@ -15,7 +16,7 @@ import { load, save } from './lib/storage';
 import { formatTime, HOUR } from './lib/time';
 import { fetchForecast, fetchNormals, type HourWeather, type Normals, type WeatherForecast } from './lib/weather';
 
-type Tab = 'forecast' | 'bucks' | 'cam' | 'account';
+type Tab = 'forecast' | 'hunt' | 'bucks' | 'cam' | 'account';
 type ForecastView = 'day' | 'best';
 
 const placeKey = (p: { lat: number; lon: number }) => `${p.lat.toFixed(2)},${p.lon.toFixed(2)}`;
@@ -156,6 +157,7 @@ function Main() {
   const selectedDay = forecast?.days.find((d) => d.key === selected) ?? forecast?.days[0] ?? null;
   const tz = forecast?.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const pendingCount = rows.sightings.filter((s) => s.status === 'pending').length;
+  const huntLive = rows.hunts.some((h) => !h.ended_at);
   const savedHere = place && rows.places.find((p) => placeKey(p) === placeKey(place));
 
   const pickPlace = (p: Place) => {
@@ -275,6 +277,7 @@ function Main() {
       )}
 
       {tab === 'bucks' && deerForecast && <Bucks fc={{ days: deerForecast.days, wx: wxMap, tz, place }} openId={openDeer} onOpen={setOpenDeer} />}
+      {tab === 'hunt' && <HuntCoach fc={forecast ? { days: forecast.days, wx: wxMap, tz, place } : null} />}
       {tab === 'cam' && <TrailCam tz={tz} fc={deerForecast ? { days: deerForecast.days, wx: wxMap, tz, place } : null} />}
       {tab === 'account' && <Account lat={place.lat} />}
 
@@ -282,6 +285,7 @@ function Main() {
         {(
           [
             ['forecast', '📈', 'Forecast'],
+            ['hunt', '🎯', 'Hunt'],
             ['bucks', '🦌', 'Bucks'],
             ['cam', '📷', 'Trail Cam'],
             ['account', '👤', 'Account'],
@@ -298,6 +302,7 @@ function Main() {
             <span className="nav-icon">{icon}</span>
             <span>{label}</span>
             {key === 'cam' && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
+            {key === 'hunt' && huntLive && <span className="badge live">LIVE</span>}
           </button>
         ))}
       </nav>

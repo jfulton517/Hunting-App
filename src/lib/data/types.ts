@@ -1,7 +1,7 @@
 // Records saved per user (in Supabase when signed in, or on the device otherwise).
 import type { Compass8 } from '../weather';
 
-export type Table = 'places' | 'stands' | 'cameras' | 'deer' | 'sightings';
+export type Table = 'places' | 'stands' | 'cameras' | 'deer' | 'sightings' | 'hunts';
 
 interface Base {
   id: string;
@@ -107,12 +107,33 @@ export interface UserSettings {
 
 export const DEFAULT_SETTINGS: UserSettings = { species: 'deer', weeks: 6, rutPeak: null, aiTier: 'off' };
 
+export type HuntEventKind = 'saw_buck' | 'saw_doe' | 'saw_target' | 'buck_hung_up' | 'heard_gobble' | 'saw_turkey' | 'called' | 'bumped' | 'moved' | 'harvest';
+
+export interface HuntEvent {
+  t: number; // epoch ms
+  kind: HuntEventKind;
+  standId?: string | null;
+  note?: string;
+}
+
+/** One trip to the woods, logged by the hunting coach. */
+export interface Hunt extends Base {
+  species: 'deer' | 'turkey';
+  stand_id: string | null;
+  target_deer_id: string | null;
+  started_at: string;
+  ended_at: string | null;
+  events: HuntEvent[];
+  notes: string;
+}
+
 export interface TableRows {
   places: SavedPlace;
   stands: Stand;
   cameras: Camera;
   deer: Deer;
   sightings: Sighting;
+  hunts: Hunt;
 }
 
 export function newId(): string {

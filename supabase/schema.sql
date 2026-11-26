@@ -76,6 +76,19 @@ create table if not exists public.sightings (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.hunts (
+  id uuid primary key,
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  species text not null default 'deer',
+  stand_id uuid references public.stands on delete set null,
+  target_deer_id uuid references public.deer on delete set null,
+  started_at timestamptz not null,
+  ended_at timestamptz,
+  events jsonb not null default '[]'::jsonb,
+  notes text not null default '',
+  created_at timestamptz not null default now()
+);
+
 -- Added after the first release; safe if the column already exists.
 alter table public.sightings add column if not exists photo_hash text;
 
@@ -87,7 +100,7 @@ create index if not exists sightings_user_taken on public.sightings (user_id, ta
 do $$
 declare t text;
 begin
-  foreach t in array array['profiles', 'places', 'stands', 'cameras', 'deer', 'sightings'] loop
+  foreach t in array array['profiles', 'places', 'stands', 'cameras', 'deer', 'sightings', 'hunts'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "own rows" on public.%I', t);
     execute format(
