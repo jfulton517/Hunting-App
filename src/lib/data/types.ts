@@ -93,13 +93,17 @@ export interface Sighting extends Base {
   notes: string;
 }
 
+/** AI photo identification level: free (off) by default; Basic and Pro are paid upgrades. */
+export type AiTier = 'off' | 'basic' | 'pro';
+
 export interface UserSettings {
   species: 'deer' | 'turkey';
   weeks: number;
   rutPeak: string | null; // "MM-DD"
+  aiTier: AiTier;
 }
 
-export const DEFAULT_SETTINGS: UserSettings = { species: 'deer', weeks: 6, rutPeak: null };
+export const DEFAULT_SETTINGS: UserSettings = { species: 'deer', weeks: 6, rutPeak: null, aiTier: 'off' };
 
 export interface TableRows {
   places: SavedPlace;

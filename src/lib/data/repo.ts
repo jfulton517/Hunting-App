@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { load, save } from '../storage';
-import type { AiResult, Deer, Sighting, Table, TableRows, UserSettings } from './types';
+import type { AiResult, AiTier, Deer, Sighting, Table, TableRows, UserSettings } from './types';
 
 export interface IdentifyRequest {
+  tier: Exclude<AiTier, 'off'>;
   sighting: Sighting;
   candidates: { deer: Deer; photoPath: string | null }[];
 }
@@ -20,6 +21,8 @@ export interface Repo {
   deletePhoto(path: string): Promise<void>;
   /** AI photo identification; only available with an account (the API key lives on the server). */
   identify: ((req: IdentifyRequest) => Promise<AiResult>) | null;
+  /** Checks that the AI server function is deployed and has its API key. */
+  checkAi: (() => Promise<{ ok: boolean; message: string }>) | null;
 }
 
 // ------------------------------------------------------------------ device-only storage
@@ -108,12 +111,27 @@ export function localRepo(): Repo {
       }
     },
     identify: null,
+    checkAi: null,
   };
 }
 
 // ------------------------------------------------------------------ Supabase (account) storage
 
 const BUCKET = 'trailcam';
+
+/** Pull the server's error message out of a functions.invoke error when there is one. */
+async function errorText(error: { message?: string; context?: unknown }, fallback: string): Promise<string> {
+  const ctx = error.context as Response | undefined;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      const body = await ctx.clone().json();
+      if (body?.error) return String(body.error);
+    } catch {
+      /* not JSON */
+    }
+  }
+  return error.message || fallback;
+}
 
 export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
   const signed = new Map<string, { url: string; exp: number }>();
@@ -155,9 +173,10 @@ export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
     async deletePhoto(path) {
       await sb.storage.from(BUCKET).remove([path]);
     },
-    async identify({ sighting, candidates }) {
+    async identify({ tier, sighting, candidates }) {
       const { data, error } = await sb.functions.invoke('identify-deer', {
         body: {
+          tier,
           photo_path: sighting.photo_path,
           candidates: candidates.map(({ deer: d, photoPath }) => ({
             id: d.id,
@@ -169,8 +188,16 @@ export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
           })),
         },
       });
-      if (error) throw new Error(error.message || 'Photo identification failed');
+      if (error) throw new Error(await errorText(error, 'Photo identification failed'));
       return data as AiResult;
+    },
+    async checkAi() {
+      const { data, error } = await sb.functions.invoke('identify-deer', { body: { ping: true } });
+      if (error) {
+        const msg = await errorText(error, '');
+        return { ok: false, message: /not found|404|Failed to send/i.test(msg + error.name) ? "The AI function isn't deployed yet (see SETUP.md, Part 2)." : msg || 'AI check failed.' };
+      }
+      return data?.ok ? { ok: true, message: 'AI is set up and ready.' } : { ok: false, message: data?.error ?? 'AI check failed.' };
     },
   };
 }

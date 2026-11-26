@@ -24,7 +24,8 @@ const TIME_SOURCE: Record<Sighting['time_source'], string> = {
 };
 
 function ReviewCard({ s, tz, onZoom }: { s: Sighting; tz: string; onZoom: (p: string) => void }) {
-  const { rows, save, remove, repo } = useData();
+  const { rows, save, remove, repo, settings } = useData();
+  const aiOn = !!repo.identify && settings.aiTier !== 'off';
   const ai = s.ai;
   const initialDeer = ai?.match_deer_id && (ai.match_confidence === 'high' || ai.match_confidence === 'medium') ? ai.match_deer_id : ai?.is_new_buck ? 'new' : '';
   const [kind, setKind] = useState<AnimalKind>(s.kind);
@@ -89,7 +90,7 @@ function ReviewCard({ s, tz, onZoom }: { s: Sighting; tz: string; onZoom: (p: st
           {ai.buck_description && <div className="small muted">{ai.buck_description}</div>}
         </div>
       ) : (
-        repo.identify &&
+        aiOn &&
         s.photo_path && (
           <button
             className="btn small"
@@ -97,7 +98,7 @@ function ReviewCard({ s, tz, onZoom }: { s: Sighting; tz: string; onZoom: (p: st
             onClick={async () => {
               setBusy('Analyzing…');
               try {
-                const next = await analyzeSighting(repo, s, rows.deer, rows.sightings, tz);
+                const next = await analyzeSighting(repo, settings.aiTier, s, rows.deer, rows.sightings, tz);
                 await save('sightings', next);
               } catch (e) {
                 setBusy(`AI failed: ${(e as Error).message}`);
@@ -170,7 +171,8 @@ function ReviewCard({ s, tz, onZoom }: { s: Sighting; tz: string; onZoom: (p: st
 }
 
 export function TrailCam({ tz }: { tz: string }) {
-  const { rows, repo, save, remove, auth } = useData();
+  const { rows, repo, save, remove, auth, settings } = useData();
+  const aiOn = auth === 'signed-in' && settings.aiTier !== 'off';
   const [cameraId, setCameraId] = useState<string>(() => rows.cameras[0]?.id ?? '');
   const [progress, setProgress] = useState<ImportProgress[]>([]);
   const [busy, setBusy] = useState(false);
@@ -205,7 +207,7 @@ export function TrailCam({ tz }: { tz: string }) {
         <h3>Add photos</h3>
         <p className="small muted">
           In the Strike Force Wireless app, open a photo and save it to your phone's photos (Share → Save Image). Then add the photos here.
-          {auth === 'signed-in' ? ' The AI suggests what is in each photo, and you confirm it.' : ' Sign in to get AI identification.'}
+          {aiOn ? ' The AI suggests what is in each photo, and you confirm it.' : ' Then pick which buck is in each one. (AI identification is an optional upgrade on the Account tab.)'}
         </p>
         <label className="field">
           <span>Camera</span>
@@ -231,7 +233,7 @@ export function TrailCam({ tz }: { tz: string }) {
               if (!files.length) return;
               setBusy(true);
               try {
-                await importPhotos({ files, cameraId: cameraId || null, tz, repo, deer: rows.deer, sightings: rows.sightings, save: (s) => save('sightings', s), onProgress: setProgress });
+                await importPhotos({ files, cameraId: cameraId || null, tz, repo, aiTier: aiOn ? settings.aiTier : 'off', deer: rows.deer, sightings: rows.sightings, save: (s) => save('sightings', s), onProgress: setProgress });
               } finally {
                 setBusy(false);
               }

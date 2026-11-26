@@ -2,8 +2,21 @@
 
 The app works without this setup: everything is saved on your phone only. These steps add:
 
-- **Personal logins**, so your places, stands, cameras, and bucks sync across devices (Supabase, free).
-- **AI photo identification**, where Claude suggests which buck is in each trail-cam photo (Anthropic API, pay per photo).
+- **Personal logins** (Part 1, **free**), so your places, stands, cameras, and bucks sync across devices.
+- **AI photo identification** (Part 2, an **optional paid upgrade**), where Claude suggests which buck is in each trail-cam photo. Skip it to keep the app 100% free. You can tag bucks yourself, and pattern learning and target-buck recommendations work the same.
+
+| Plan | Cost | What you get |
+|---|---|---|
+| Free | $0 | Everything except AI photo reading. You pick the buck in each photo. |
+| Basic AI | ≈ $1–2 per 1,000 photos | A smaller Claude model (Haiku) sorts photos (buck, doe, empty) and reads the date and time stamp. It is less reliable at telling similar bucks apart. |
+| Pro AI | ≈ 3–8¢ per photo | Claude Opus compares antlers against your known bucks, flags new bucks, and reads the stamp. |
+
+Choose the plan in the app under **Account → Upgrade: AI photo identification**. AI costs are billed by Anthropic to your own API account, with a spending limit you set.
+
+**Free-plan limits worth knowing**
+- Supabase's free plan stores about 1 GB of photos, roughly 6,000 trail-cam photos at the size the app saves.
+- A free Supabase project **pauses after about a week with no use**. If that happens, sign in at supabase.com and click **Restore project**; nothing is lost.
+- The weather data (Open-Meteo) is free for personal, non-commercial use.
 
 Supabase's screens change from time to time, so a button name may differ slightly from what's written here.
 
@@ -31,9 +44,9 @@ Supabase's screens change from time to time, so a button name may differ slightl
 
 > Never share the **service_role** or **secret** key, or your database password. The app doesn't need them.
 
-## Part 2: AI buck identification, about 10 minutes
+## Part 2 (optional upgrade): AI buck identification, about 10 minutes
 
-**Cost:** each photo is one request to Claude Opus 5.5 at a low thinking-effort setting. That's roughly **3–6¢ per photo**, depending on how many reference photos of your known bucks are included. You only pay for what you use, and you can set a monthly spending limit in the Anthropic Console.
+Only needed for the Basic AI or Pro AI plan. Each photo is one request to Claude, at the costs in the table above. You only pay for what you use, and you can set a monthly spending limit in the Anthropic Console.
 
 1. Go to **https://console.anthropic.com** and sign up.
 2. Open **Billing** and add a payment method or credits. Set a monthly **spend limit**, for example $10.
@@ -48,7 +61,9 @@ Supabase's screens change from time to time, so a button name may differ slightl
    - Value: the key from step 3
    - Save.
 
-That's it. Sign in to the app, add a camera, and add photos on the **Trail Cam** tab. Each photo gets an AI suggestion that you confirm or correct.
+6. In the app, open **Account → Upgrade: AI photo identification**, choose **Basic AI** or **Pro AI**, and tap **Test AI setup**. You should see "✓ AI is set up and ready."
+
+That's it. Photos you add on the **Trail Cam** tab now get an AI suggestion that you confirm or correct. Switch back to **Free** at any time.
 
 ---
 

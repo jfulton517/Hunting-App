@@ -1,7 +1,7 @@
 // Trail-cam photo import: read capture time, shrink for upload, save, and ask the AI.
 import exifr from 'exifr';
 import type { Repo } from './data/repo';
-import { newId, type AnimalKind, type Deer, type Sighting } from './data/types';
+import { newId, type AiTier, type AnimalKind, type Deer, type Sighting } from './data/types';
 import { zonedToEpoch } from './time';
 
 /** Capture time from EXIF as local wall-clock ("YYYY:MM:DD HH:MM:SS"), interpreted in the camera's zone. */
@@ -17,7 +17,8 @@ export async function exifTakenAt(file: Blob, tz: string): Promise<number | null
 }
 
 /** Downscale to at most `max` px on the long side as JPEG (smaller uploads, cheaper AI). */
-export async function shrinkImage(file: Blob, max = 1568, quality = 0.85): Promise<Blob> {
+// 1280 px is plenty to recognize a buck and keeps photos ~150 KB, so free storage holds ~6,000+.
+export async function shrinkImage(file: Blob, max = 1280, quality = 0.8): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file);
     const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
@@ -48,10 +49,11 @@ export function referencePaths(deer: Deer[], sightings: Sighting[]): Map<string,
   return out;
 }
 
-export async function analyzeSighting(repo: Repo, sighting: Sighting, deer: Deer[], sightings: Sighting[], tz: string): Promise<Sighting> {
-  if (!repo.identify || !sighting.photo_path) return sighting;
+export async function analyzeSighting(repo: Repo, tier: AiTier, sighting: Sighting, deer: Deer[], sightings: Sighting[], tz: string): Promise<Sighting> {
+  if (!repo.identify || tier === 'off' || !sighting.photo_path) return sighting;
   const refs = referencePaths(deer, sightings);
   const ai = await repo.identify({
+    tier,
     sighting,
     candidates: deer.filter((d) => d.status === 'active').map((d) => ({ deer: d, photoPath: refs.get(d.id) ?? null })),
   });
@@ -75,6 +77,7 @@ export async function importPhotos(opts: {
   cameraId: string | null;
   tz: string;
   repo: Repo;
+  aiTier: AiTier;
   deer: Deer[];
   sightings: Sighting[];
   save: (s: Sighting) => Promise<void>;
@@ -112,10 +115,10 @@ export async function importPhotos(opts: {
           notes: '',
         };
         await opts.save(sighting);
-        if (opts.repo.identify) {
+        if (opts.repo.identify && opts.aiTier !== 'off') {
           update(i, { state: 'analyzing' });
           try {
-            sighting = await analyzeSighting(opts.repo, sighting, opts.deer, opts.sightings, opts.tz);
+            sighting = await analyzeSighting(opts.repo, opts.aiTier, sighting, opts.deer, opts.sightings, opts.tz);
             await opts.save(sighting);
           } catch (e) {
             update(i, { state: 'done', message: `Saved; AI couldn't read it (${(e as Error).message})` });

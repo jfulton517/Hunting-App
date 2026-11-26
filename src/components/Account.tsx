@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useData } from '../lib/data/store';
-import { newId, type Camera, type SavedPlace, type Stand } from '../lib/data/types';
+import { newId, type AiTier, type Camera, type SavedPlace, type Stand } from '../lib/data/types';
 import { getDevicePosition } from '../lib/location';
 import { defaultRutPeak } from '../lib/season';
 import { COMPASS_8, type Compass8 } from '../lib/weather';
@@ -254,6 +254,65 @@ export function CamerasSection() {
   );
 }
 
+const TIERS: { value: AiTier; name: string; price: string; detail: string }[] = [
+  { value: 'off', name: 'Free', price: '$0', detail: 'You pick which buck is in each photo. Pattern learning and target-buck recommendations work the same.' },
+  { value: 'basic', name: 'Basic AI', price: '≈ $1–2 per 1,000 photos', detail: 'A smaller, faster Claude model sorts photos (buck, doe, empty) and reads the date and time stamp. It is less reliable at telling similar bucks apart.' },
+  { value: 'pro', name: 'Pro AI', price: '≈ 3–8¢ per photo', detail: 'Claude Opus compares antlers against your known bucks, flags new bucks, and reads the date and time stamp.' },
+];
+
+function AiUpgradeSection() {
+  const { auth, repo, settings, setSettings } = useData();
+  const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const signedIn = auth === 'signed-in';
+  return (
+    <Section title="Upgrade: AI photo identification" hint="Optional. The app is free without it. AI usage is billed by Anthropic to your own API account, with a spending limit you set.">
+      <div className="tiers">
+        {TIERS.map((t) => (
+          <button
+            key={t.value}
+            className={`tier ${settings.aiTier === t.value ? 'active' : ''}`}
+            disabled={!signedIn && t.value !== 'off'}
+            onClick={() => {
+              setSettings({ ...settings, aiTier: t.value });
+              setCheck(null);
+            }}
+          >
+            <span className="tier-head">
+              <strong>{t.name}</strong>
+              <span className="tier-price">{t.price}</span>
+            </span>
+            <span className="small muted">{t.detail}</span>
+          </button>
+        ))}
+      </div>
+      {!signedIn && <p className="small muted">AI upgrades need accounts to be switched on (SETUP.md, Part 1).</p>}
+      {signedIn && settings.aiTier !== 'off' && (
+        <>
+          <p className="small">
+            One-time setup: add your Anthropic API key to Supabase (SETUP.md, Part 2). Then test it here.
+          </p>
+          <button
+            className="btn small"
+            disabled={checking || !repo.checkAi}
+            onClick={async () => {
+              setChecking(true);
+              try {
+                setCheck(await repo.checkAi!());
+              } finally {
+                setChecking(false);
+              }
+            }}
+          >
+            {checking ? 'Checking…' : 'Test AI setup'}
+          </button>
+          {check && <p className={check.ok ? 'small ok-text' : 'small warn-text'}>{check.ok ? '✓ ' : ''}{check.message}</p>}
+        </>
+      )}
+    </Section>
+  );
+}
+
 export function Account({ lat }: { lat: number | null }) {
   const { auth, email, signOut, settings, setSettings, localCount, importLocal } = useData();
   const [importing, setImporting] = useState<string | null>(null);
@@ -296,6 +355,8 @@ export function Account({ lat }: { lat: number | null }) {
           <p className="small muted">Accounts aren't switched on yet, so everything is saved on this phone only. AI photo identification also needs accounts. See SETUP.md in the project.</p>
         )}
       </Section>
+
+      <AiUpgradeSection />
 
       <Section title="Forecast range" hint="The first 16 days use the hourly weather forecast. Later days are scored on sun, moon, solunar, and season.">
         <div className="seg">

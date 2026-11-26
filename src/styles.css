@@ -1094,3 +1094,43 @@ select.input {
   align-items: center;
   gap: 3px;
 }
+
+/* ---------- AI upgrade tiers ---------- */
+.tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+}
+.tier.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.tier:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.tier-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tier-price {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.ok-text {
+  color: var(--score-excellent);
+}

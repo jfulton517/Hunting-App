@@ -6,8 +6,12 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@1.14.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.119.2';
 
-const MODEL = 'claude-opus-5-5';
-const MAX_REFERENCE_PHOTOS = 8;
+// Upgrade levels chosen in the app. Basic is a low-cost sorter; Pro does careful buck matching.
+const TIERS = {
+  basic: { model: 'claude-haiku-5-5', maxReferencePhotos: 3 },
+  pro: { model: 'claude-opus-5-5', maxReferencePhotos: 6 },
+} as const;
+type Tier = keyof typeof TIERS;
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -83,12 +87,16 @@ Deno.serve(async (req) => {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return json({ error: 'Not signed in' }, 401);
 
-  let body: { photo_path?: string; candidates?: Candidate[] };
+  let body: { photo_path?: string; candidates?: Candidate[]; tier?: string; ping?: boolean };
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Invalid JSON body' }, 400);
   }
+  // Setup check from the app's Account screen.
+  if (body.ping) return json({ ok: true });
+  const tier: Tier = body.tier === 'basic' ? 'basic' : 'pro';
+  const { model, maxReferencePhotos } = TIERS[tier];
   const photoPath = body.photo_path;
   if (!photoPath || !photoPath.startsWith(`${userData.user.id}/`)) return json({ error: 'Invalid photo' }, 400);
   const candidates = (body.candidates ?? []).slice(0, 40);
@@ -110,7 +118,7 @@ Deno.serve(async (req) => {
       .filter(Boolean)
       .join('; ');
     known.push(`- id ${c.id}: "${c.name}"${facts ? ` (${facts})` : ''}`);
-    if (c.reference_photo_path && refs < MAX_REFERENCE_PHOTOS) {
+    if (c.reference_photo_path && refs < maxReferencePhotos) {
       const ref = await download(c.reference_photo_path);
       if (ref) {
         refs++;
@@ -127,15 +135,18 @@ Deno.serve(async (req) => {
 
   const client = new Anthropic({ apiKey });
   try {
-    const response = await client.beta.messages.create({
-      model: MODEL,
+    const request = {
+      model,
       max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: RESULT_SCHEMA } },
+      output_config: { effort: 'low' as const, format: { type: 'json_schema' as const, schema: RESULT_SCHEMA } },
       system: SYSTEM,
-      messages: [{ role: 'user', content }],
-    });
+      messages: [{ role: 'user' as const, content }],
+    };
+    // Pro opts into server-side fallback if a request is declined; Haiku has no server-side fallback.
+    const response =
+      tier === 'pro'
+        ? await client.beta.messages.create({ ...request, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+        : await client.beta.messages.create(request);
 
     if (response.stop_reason === 'refusal') return json({ error: 'The photo could not be analyzed' }, 422);
     if (response.stop_reason === 'max_tokens') return json({ error: 'Analysis was cut off; try again' }, 502);
