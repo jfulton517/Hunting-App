@@ -88,6 +88,8 @@ export interface Sighting extends Base {
   photo_path: string | null;
   /** Fingerprint of the original file, used to skip duplicate uploads */
   photo_hash?: string | null;
+  /** Perceptual fingerprint (what the picture looks like), used to find re-saved copies */
+  photo_phash?: string | null;
   kind: AnimalKind;
   status: 'pending' | 'confirmed';
   ai: AiResult | null;

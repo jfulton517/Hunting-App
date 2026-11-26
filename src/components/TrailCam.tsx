@@ -7,6 +7,7 @@ import { CamerasSection } from './Account';
 import { AnalyzePhotos } from './AnalyzePhotos';
 import { CameraInsights, type ForecastCtx } from './CameraInsights';
 import { describeConditions, fillConditions } from '../lib/conditions';
+import { Duplicates, useDeletePhotos } from './Duplicates';
 import { Lightbox, Photo } from './Photo';
 
 const KINDS: { value: AnimalKind; label: string }[] = [
@@ -236,6 +237,10 @@ export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [zoom, setZoom] = useState<string | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [shown, setShown] = useState(60);
+  const deletePhotos = useDeletePhotos();
 
   const pending = useMemo(() => rows.sightings.filter((s) => s.status === 'pending').sort((a, b) => Date.parse(b.taken_at) - Date.parse(a.taken_at)), [rows.sightings]);
   const confirmed = useMemo(
@@ -426,9 +431,42 @@ export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
         </>
       )}
 
+      <Duplicates tz={tz} />
+
       <div className="section-head">
         <h2>Photo log</h2>
+        {confirmed.length > 0 && (
+          <button
+            className="btn small ghost"
+            onClick={() => {
+              setSelecting(!selecting);
+              setSelected(new Set());
+            }}
+          >
+            {selecting ? 'Cancel' : 'Select'}
+          </button>
+        )}
       </div>
+      {selecting && (
+        <div className="select-bar">
+          <span className="small">{selected.size} selected</span>
+          <button className="btn small ghost" onClick={() => setSelected(new Set(confirmed.slice(0, shown).map((s) => s.id)))}>
+            Select all shown
+          </button>
+          <button
+            className="btn small danger-outline"
+            disabled={!selected.size}
+            onClick={async () => {
+              if (!confirm(`Delete ${selected.size} photo${selected.size === 1 ? '' : 's'}? This can’t be undone.`)) return;
+              await deletePhotos(rows.sightings.filter((s) => selected.has(s.id)));
+              setSelected(new Set());
+              setSelecting(false);
+            }}
+          >
+            🗑 Delete
+          </button>
+        </div>
+      )}
       <div className="chips">
         <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>
           All cameras
@@ -445,8 +483,20 @@ export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
         <p className="muted small">No confirmed photos yet.</p>
       ) : (
         <div className="gallery">
-          {confirmed.slice(0, 60).map((s) => (
-            <figure key={s.id} onClick={() => s.photo_path && setZoom(s.photo_path)}>
+          {confirmed.slice(0, shown).map((s) => (
+            <figure
+              key={s.id}
+              className={selecting ? (selected.has(s.id) ? 'selectable picked' : 'selectable') : ''}
+              onClick={() => {
+                if (selecting) {
+                  const next = new Set(selected);
+                  if (next.has(s.id)) next.delete(s.id);
+                  else next.add(s.id);
+                  setSelected(next);
+                } else if (s.photo_path) setZoom(s.photo_path);
+              }}
+            >
+              {selecting && <span className="pick">{selected.has(s.id) ? '✓' : ''}</span>}
               <Photo path={s.photo_path} alt={deerName(s.deer_id) ?? s.kind} />
               <figcaption>
                 <strong>{deerName(s.deer_id) ?? KINDS.find((k) => k.value === s.kind)?.label}</strong>
@@ -459,7 +509,21 @@ export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
           ))}
         </div>
       )}
-      {zoom && <Lightbox path={zoom} onClose={() => setZoom(null)} />}
+      {confirmed.length > shown && (
+        <button className="btn block ghost" onClick={() => setShown(shown + 60)}>
+          Show more ({confirmed.length - shown} more)
+        </button>
+      )}
+      {zoom && (
+        <Lightbox
+          path={zoom}
+          onClose={() => setZoom(null)}
+          onDelete={(() => {
+            const z = rows.sightings.find((x) => x.photo_path === zoom);
+            return z ? () => deletePhotos([z]) : undefined;
+          })()}
+        />
+      )}
     </div>
   );
 }

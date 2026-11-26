@@ -2,6 +2,7 @@
 import exifr from 'exifr';
 import type { Repo } from './data/repo';
 import { newId, type AiTier, type AnimalKind, type Deer, type Sighting } from './data/types';
+import { findDuplicateOf, perceptualHash } from './dedupe';
 import { readStamp } from './stamp';
 import { zonedToEpoch } from './time';
 
@@ -172,6 +173,19 @@ export async function importPhotos(opts: {
           }
         }
         const blob = await shrinkImage(file);
+        const takenAt = new Date(exif ?? stamp ?? file.lastModified ?? Date.now()).toISOString();
+        // Same picture saved twice (e.g. standard + HD from Strike Force): different bytes, same image.
+        let phash: string | null = null;
+        try {
+          phash = await perceptualHash(blob);
+        } catch {
+          phash = null;
+        }
+        if (findDuplicateOf({ camera_id: opts.cameraId, taken_at: takenAt, photo_hash: hash, photo_phash: phash }, [...opts.sightings, ...summary.created])) {
+          summary.skipped++;
+          update(i, { state: 'skipped', message: 'looks like a photo you already have' });
+          continue;
+        }
         const id = newId();
         update(i, { state: 'uploading', message: undefined });
         const photo_path = await opts.repo.uploadPhoto(id, blob);
@@ -179,10 +193,11 @@ export async function importPhotos(opts: {
           id,
           camera_id: opts.cameraId,
           deer_id: null,
-          taken_at: new Date(exif ?? stamp ?? file.lastModified ?? Date.now()).toISOString(),
+          taken_at: takenAt,
           time_source: exif ? 'exif' : stamp ? 'stamp' : 'file',
           photo_path,
           photo_hash: hash,
+          photo_phash: phash,
           kind: 'unknown',
           status: 'pending',
           ai: null,
