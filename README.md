@@ -27,6 +27,15 @@ Each hour's score is **activity × weather × season** (0–100). Tap any hour t
 - **Days 17–56**: long-range outlook scored from sun, moon, solunar, and rut or season timing only. These are marked as estimates and ranked separately.
 - Temperature normals come from the last 5 years of observations (Open-Meteo archive).
 
+## Accounts, trail cameras & target bucks
+
+- **1–10 Huntability** scores, hour by hour and per day, in the style of HuntWise's HuntCast. 8 or higher is a great time to hunt.
+- **Personal accounts** (Supabase): saved hunting places, stands and blinds with their good winds, trail cameras, and deer profiles, synced across devices. Each user can only see their own data, enforced by row-level security in `supabase/schema.sql`.
+- **Trail cam log**: add photos saved from the Browning **Strike Force Wireless** app. Claude (through a Supabase Edge Function that holds the API key) suggests what is in each photo, matches bucks against your known deer, flags new bucks, and reads the date, time, and temperature stamp. You confirm every suggestion.
+- **Target bucks**: for each deer, the app looks up the actual weather at every sighting, learns his pattern (time of day, wind, pressure trend, temperature change, moon, and favorite cameras), compares it with what conditions were common over the same period, then ranks upcoming forecast windows. Each window comes with a stand that suits the wind and keeps your scent off his camera area.
+
+Setup steps for accounts and AI: **[SETUP.md](SETUP.md)**. Without them the app runs in device-only mode.
+
 ## Running it
 
 ```bash
@@ -47,6 +56,11 @@ src/lib/weather.ts    Open-Meteo forecast + historical normals
 src/lib/season.ts     rut phases, turkey breeding phases
 src/lib/scoring.ts    hourly scoring model for both species
 src/lib/forecast.ts   builds days, best windows, highlights, rankings
+src/lib/patterns.ts   learns a deer's pattern from sightings; target-buck recommendations
+src/lib/history.ts    past hourly weather for each sighting
+src/lib/photos.ts     trail-cam photo import (EXIF time, resize, AI identify)
+src/lib/data/         accounts and storage (Supabase or on-device)
+supabase/             database schema and the identify-deer Edge Function
 src/components/       React UI
 ```
 

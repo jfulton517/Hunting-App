@@ -169,3 +169,13 @@ describe('turkey scoring', () => {
     expect(windy.days[1].score).toBeLessThan(d.score - 20);
   });
 });
+
+describe('zoned time parsing', () => {
+  it('round-trips local wall-clock times', async () => {
+    const { zonedToEpoch, epochToLocalInput } = await import('./time');
+    const t = zonedToEpoch('2026-11-20T06:45', 'America/Chicago')!;
+    expect(t).toBe(Date.UTC(2026, 10, 20, 12, 45));
+    expect(epochToLocalInput(t, 'America/Chicago')).toBe('2026-11-20T06:45');
+    expect(zonedToEpoch('2026-07-04T18:00', 'America/New_York')).toBe(Date.UTC(2026, 6, 4, 22, 0));
+  });
+});

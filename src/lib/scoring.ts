@@ -373,6 +373,11 @@ export function scoreHour(species: Species, ctx: HourContext): HourScore {
   };
 }
 
+/** HuntWise-style 1–10 "Huntability" shown to users (internal scores are 0–100). */
+export function huntability(score: number): string {
+  return Math.max(1, score / 10).toFixed(1);
+}
+
 export function scoreLabel(score: number): { label: string; tone: 'excellent' | 'good' | 'fair' | 'poor' } {
   if (score >= 75) return { label: 'Excellent', tone: 'excellent' };
   if (score >= 60) return { label: 'Good', tone: 'good' };
