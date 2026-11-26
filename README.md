@@ -52,3 +52,9 @@ src/components/       React UI
 
 ## Disclaimer
 Legal shooting hours shown are typical defaults (deer: 30 min before sunrise to 30 min after sunset; turkey: to sunset). Always check your state's regulations and season dates.
+
+## Live site
+
+The app is published automatically to GitHub Pages at
+**https://jfulton517.github.io/Hunting-App/** every time `main` changes
+(see `.github/workflows/deploy.yml`).
