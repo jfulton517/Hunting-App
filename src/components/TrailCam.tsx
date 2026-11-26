@@ -4,6 +4,9 @@ import { newId, type AgeClass, type AnimalKind, type Deer, type Sighting } from 
 import { analyzeSighting, expandFiles, importPhotos, type ImportProgress, type ImportSummary } from '../lib/photos';
 import { epochToLocalInput, formatDay, formatTime, zonedToEpoch } from '../lib/time';
 import { CamerasSection } from './Account';
+import { AnalyzePhotos } from './AnalyzePhotos';
+import { CameraInsights, type ForecastCtx } from './CameraInsights';
+import { describeConditions, fillConditions } from '../lib/conditions';
 import { Lightbox, Photo } from './Photo';
 
 const KINDS: { value: AnimalKind; label: string }[] = [
@@ -38,6 +41,22 @@ function ReviewCard({ s, tz, onZoom }: { s: Sighting; tz: string; onZoom: (p: st
   const candidates = rows.deer.filter((d) => d.status === 'active' && (kind === 'buck' ? d.sex === 'buck' : kind === 'doe' ? d.sex === 'doe' : true));
   const matched = rows.deer.find((d) => d.id === ai?.match_deer_id);
   const isDeer = kind === 'buck' || kind === 'doe';
+
+  // One tap: confirm with just the animal type (no specific deer), keeping the photo's time.
+  const quickTag = async (k: AnimalKind) => {
+    setBusy('Saving…');
+    const t = zonedToEpoch(time, tz);
+    const changedTime = t != null && Math.abs(t - Date.parse(s.taken_at)) > 60_000;
+    await save('sightings', {
+      ...s,
+      kind: k,
+      deer_id: null,
+      status: 'confirmed',
+      taken_at: t != null ? new Date(t).toISOString() : s.taken_at,
+      time_source: changedTime ? 'manual' : s.time_source,
+      weather: changedTime ? null : s.weather,
+    });
+  };
 
   const confirm = async () => {
     setBusy('Saving…');
@@ -149,6 +168,16 @@ function ReviewCard({ s, tz, onZoom }: { s: Sighting; tz: string; onZoom: (p: st
         <span>Time taken ({TIME_SOURCE[s.time_source]})</span>
         <input className="input" type="datetime-local" value={time} onChange={(e) => setTime(e.target.value)} />
       </label>
+      {s.weather && <p className="small conditions">🌡 {describeConditions(s.weather)}</p>}
+
+      <div className="quick-tags">
+        <span className="small muted">Quick tag:</span>
+        {(['buck', 'doe', 'fawn', 'none'] as const).map((k) => (
+          <button key={k} className="btn small" disabled={!!busy} onClick={() => quickTag(k)}>
+            {k === 'none' ? 'Empty' : k[0].toUpperCase() + k.slice(1)}
+          </button>
+        ))}
+      </div>
 
       <div className="row">
         <button className="btn primary" disabled={!!busy} onClick={confirm}>
@@ -199,8 +228,8 @@ function ImportStatus({ progress, summary }: { progress: ImportProgress[]; summa
   );
 }
 
-export function TrailCam({ tz }: { tz: string }) {
-  const { rows, repo, save, remove, auth, settings } = useData();
+export function TrailCam({ tz, fc }: { tz: string; fc: ForecastCtx | null }) {
+  const { rows, repo, save, saveMany, remove, auth, settings } = useData();
   const aiOn = auth === 'signed-in' && settings.aiTier !== 'off';
   const [cameraId, setCameraId] = useState<string>(() => rows.cameras[0]?.id ?? '');
   const [progress, setProgress] = useState<ImportProgress[]>([]);
@@ -257,6 +286,13 @@ export function TrailCam({ tz }: { tz: string }) {
       }
       const result = await importPhotos({ files: images, cameraId: cameraId || null, tz, repo, aiTier: tier, deer: rows.deer, sightings: rows.sightings, save: (s) => save('sightings', s), onProgress: setProgress });
       setSummary(result);
+      // Look up the weather for the new photos right away (free).
+      try {
+        const { updated } = await fillConditions(result.created, rows.cameras, fc?.place ?? null);
+        if (updated.length) await saveMany('sightings', updated);
+      } catch {
+        /* offline: the Analyze photos card offers to do it later */
+      }
       if (ignored) setNotice(`${ignored} file${ignored === 1 ? ' was' : 's were'} skipped because ${ignored === 1 ? "it isn't a photo" : "they aren't photos"}.`);
     } catch (e) {
       setNotice(`Import failed: ${(e as Error).message}`);
@@ -354,6 +390,8 @@ export function TrailCam({ tz }: { tz: string }) {
         {progress.length > 0 && <ImportStatus progress={progress} summary={summary} />}
       </section>
 
+      <AnalyzePhotos tz={tz} fallback={fc?.place ?? null} />
+
       {pending.length > 0 && (
         <>
           {confident.length > 0 && (
@@ -401,6 +439,8 @@ export function TrailCam({ tz }: { tz: string }) {
           </button>
         ))}
       </div>
+      {fc && filter !== 'all' && rows.cameras.find((c) => c.id === filter) && <CameraInsights camera={rows.cameras.find((c) => c.id === filter)!} fc={fc} />}
+      {filter === 'all' && rows.cameras.length > 0 && confirmed.length > 0 && <p className="small muted">Tap a camera above to see when bucks move there and the best upcoming times to hunt it.</p>}
       {confirmed.length === 0 ? (
         <p className="muted small">No confirmed photos yet.</p>
       ) : (
@@ -413,6 +453,7 @@ export function TrailCam({ tz }: { tz: string }) {
                 <span>
                   {formatDay(Date.parse(s.taken_at), tz, { weekday: undefined })} {formatTime(Date.parse(s.taken_at), tz)}
                 </span>
+                {s.weather && <span className="cond">{describeConditions(s.weather, true)}</span>}
               </figcaption>
             </figure>
           ))}

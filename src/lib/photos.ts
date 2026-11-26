@@ -2,6 +2,7 @@
 import exifr from 'exifr';
 import type { Repo } from './data/repo';
 import { newId, type AiTier, type AnimalKind, type Deer, type Sighting } from './data/types';
+import { readStamp } from './stamp';
 import { zonedToEpoch } from './time';
 
 /** Capture time from EXIF as local wall-clock ("YYYY:MM:DD HH:MM:SS"), interpreted in the camera's zone. */
@@ -100,6 +101,8 @@ export async function analyzeSighting(repo: Repo, tier: AiTier, sighting: Sighti
 }
 
 export interface ImportSummary {
+  /** Sightings created by this import (for follow-up weather analysis) */
+  created: Sighting[];
   imported: number;
   skipped: number;
   failed: number;
@@ -139,7 +142,7 @@ export async function importPhotos(opts: {
   opts.onProgress([...progress]);
 
   const seen = new Set(opts.sightings.map((s) => s.photo_hash).filter(Boolean) as string[]);
-  const summary: ImportSummary = { imported: 0, skipped: 0, failed: 0 };
+  const summary: ImportSummary = { created: [], imported: 0, skipped: 0, failed: 0 };
   const useAi = !!opts.repo.identify && opts.aiTier !== 'off';
 
   let next = 0;
@@ -157,16 +160,27 @@ export async function importPhotos(opts: {
         }
         seen.add(hash);
         const exif = await exifTakenAt(file, opts.tz);
+        // No time in the file and no AI: read the printed info strip on the phone (free).
+        let stamp: number | null = null;
+        if (!exif && !useAi) {
+          update(i, { state: 'reading', message: 'reading date stamp' });
+          try {
+            const r = await readStamp(file);
+            stamp = r ? zonedToEpoch(r.local, opts.tz) : null;
+          } catch {
+            stamp = null; // OCR unavailable (offline): keep the file date and let the user check it
+          }
+        }
         const blob = await shrinkImage(file);
         const id = newId();
-        update(i, { state: 'uploading' });
+        update(i, { state: 'uploading', message: undefined });
         const photo_path = await opts.repo.uploadPhoto(id, blob);
         let sighting: Sighting = {
           id,
           camera_id: opts.cameraId,
           deer_id: null,
-          taken_at: new Date(exif ?? file.lastModified ?? Date.now()).toISOString(),
-          time_source: exif ? 'exif' : 'file',
+          taken_at: new Date(exif ?? stamp ?? file.lastModified ?? Date.now()).toISOString(),
+          time_source: exif ? 'exif' : stamp ? 'stamp' : 'file',
           photo_path,
           photo_hash: hash,
           kind: 'unknown',
@@ -177,8 +191,9 @@ export async function importPhotos(opts: {
         };
         await opts.save(sighting);
         summary.imported++;
+        summary.created.push(sighting);
         if (useAi) {
-          update(i, { state: 'analyzing' });
+          update(i, { state: 'analyzing', message: undefined });
           try {
             sighting = await analyzeSighting(opts.repo, opts.aiTier, sighting, opts.deer, opts.sightings, opts.tz);
             await opts.save(sighting);
@@ -187,7 +202,7 @@ export async function importPhotos(opts: {
             continue;
           }
         }
-        update(i, { state: 'done' });
+        update(i, { state: 'done', message: undefined });
       } catch (e) {
         summary.failed++;
         update(i, { state: 'error', message: (e as Error).message });

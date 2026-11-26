@@ -13,6 +13,7 @@ export interface Repo {
   kind: 'local' | 'cloud';
   list<T extends Table>(table: T): Promise<TableRows[T][]>;
   upsert<T extends Table>(table: T, row: TableRows[T]): Promise<void>;
+  upsertMany<T extends Table>(table: T, rows: TableRows[T][]): Promise<void>;
   remove(table: Table, id: string): Promise<void>;
   getSettings(): Promise<Partial<UserSettings> | null>;
   saveSettings(s: UserSettings): Promise<void>;
@@ -21,6 +22,8 @@ export interface Repo {
   deletePhoto(path: string): Promise<void>;
   /** AI photo identification; only available with an account (the API key lives on the server). */
   identify: ((req: IdentifyRequest) => Promise<AiResult>) | null;
+  /** AI hunting coach answer (upgrade). */
+  askCoach: ((req: { tier: Exclude<AiTier, 'off'>; question: string; situation: string; history: { q: string; a: string }[] }) => Promise<string>) | null;
   /** Checks that the AI server function is deployed and has its API key. */
   checkAi: (() => Promise<{ ok: boolean; message: string }>) | null;
 }
@@ -62,6 +65,17 @@ export function localRepo(): Repo {
       const stamped = { created_at: new Date().toISOString(), ...row };
       if (i >= 0) rows[i] = stamped;
       else rows.push(stamped);
+      save(key(table), rows);
+    },
+    async upsertMany(table, incoming) {
+      const rows = load<{ id: string }[]>(key(table), []);
+      const index = new Map(rows.map((r, i) => [r.id, i]));
+      for (const row of incoming) {
+        const stamped = { created_at: new Date().toISOString(), ...row };
+        const i = index.get(row.id);
+        if (i != null) rows[i] = stamped;
+        else rows.push(stamped);
+      }
       save(key(table), rows);
     },
     async remove(table, id) {
@@ -111,6 +125,7 @@ export function localRepo(): Repo {
       }
     },
     identify: null,
+    askCoach: null,
     checkAi: null,
   };
 }
@@ -146,6 +161,11 @@ export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
     },
     async upsert(table, row) {
       check(await sb.from(table).upsert({ ...row, user_id: userId }));
+    },
+    async upsertMany(table, rows) {
+      for (let i = 0; i < rows.length; i += 200) {
+        check(await sb.from(table).upsert(rows.slice(i, i + 200).map((r) => ({ ...r, user_id: userId }))));
+      }
     },
     async remove(table, id) {
       check(await sb.from(table).delete().eq('id', id));
@@ -190,6 +210,14 @@ export function cloudRepo(sb: SupabaseClient, userId: string): Repo {
       });
       if (error) throw new Error(await errorText(error, 'Photo identification failed'));
       return data as AiResult;
+    },
+    async askCoach(body) {
+      const { data, error } = await sb.functions.invoke('hunt-coach', { body });
+      if (error) {
+        const msg = await errorText(error, 'The coach is unavailable');
+        throw new Error(/not found|404|Failed to send/i.test(msg + error.name) ? "The AI coach isn't deployed yet (see SETUP.md, Part 2)." : msg);
+      }
+      return String(data?.answer ?? '');
     },
     async checkAi() {
       const { data, error } = await sb.functions.invoke('identify-deer', { body: { ping: true } });

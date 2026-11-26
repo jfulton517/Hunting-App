@@ -11,6 +11,8 @@ The app works without this setup: everything is saved on your phone only. These 
 | Basic AI | ≈ $1–2 per 1,000 photos | A smaller Claude model (Haiku) sorts photos (buck, doe, empty) and reads the date and time stamp. It is less reliable at telling similar bucks apart. |
 | Pro AI | ≈ 3–8¢ per photo | Claude Opus compares antlers against your known bucks, flags new bucks, and reads the stamp. |
 
+Both AI plans also unlock **Ask the coach** during a hunt: well under a penny per question on Basic, and a few cents on Pro.
+
 Choose the plan in the app under **Account → Upgrade: AI photo identification**. AI costs are billed by Anthropic to your own API account, with a spending limit you set.
 
 **Free-plan limits worth knowing**
@@ -56,6 +58,7 @@ Only needed for the Basic AI or Pro AI plan. Each photo is one request to Claude
    - Name it exactly `identify-deer`.
    - Delete the sample code, then paste the contents of [`supabase/functions/identify-deer/index.ts`](supabase/functions/identify-deer/index.ts). Use the **Copy raw file** button on GitHub.
    - Click **Deploy function**.
+   - Repeat for the **AI hunting coach**: deploy a second function named exactly `hunt-coach` with the contents of [`supabase/functions/hunt-coach/index.ts`](supabase/functions/hunt-coach/index.ts).
 5. In Supabase, go to **Edge Functions → Secrets** (or **Project Settings → Edge Functions**) and add a secret:
    - Name: `ANTHROPIC_API_KEY`
    - Value: the key from step 3
@@ -79,6 +82,13 @@ Browning doesn't offer a way for other apps to sign in to Strike Force Wireless,
 **On your phone**
 1. In the **Strike Force Wireless** app, tap **Select All**, then **Share → Save Images**.
 2. In Hunt Forecast, go to **Trail Cam**, pick the camera, tap **Choose photos or ZIP**, and select the saved photos.
+
+**What happens to each photo (free)**
+- **Date and time:** taken from the photo file when it's there. If not, the app **reads the date/time stamp printed on the photo**, right on your phone with free text recognition. The first use downloads the reader (about 3 MB).
+- **Weather:** the app looks up the **temperature, wind, barometric pressure trend, temperature change from the day before, and moon phase** at the exact hour each photo was taken, using historical weather for the camera's location. Give each camera a location in Account → Trail cameras.
+- Photos imported before this update, or while you were offline: tap **Analyze photos** on the Trail Cam tab to do both steps for all of them at once.
+- **Quick tag** buttons (Buck, Doe, Fawn, Empty) confirm a photo with one tap.
+- On the **Photo log**, tap a camera's name to see **when bucks move on that camera** and the **best upcoming times to hunt it**.
 
 **Good to know**
 - **Duplicates are skipped automatically**, so you can re-download everything each time without double-counting sightings.

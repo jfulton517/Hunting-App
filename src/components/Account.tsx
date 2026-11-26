@@ -314,7 +314,7 @@ function AiUpgradeSection() {
 }
 
 export function Account({ lat }: { lat: number | null }) {
-  const { auth, email, signOut, settings, setSettings, localCount, importLocal } = useData();
+  const { auth, email, signOut, settings, setSettings, localCount, importLocal, pendingSync } = useData();
   const [importing, setImporting] = useState<string | null>(null);
   const auto = lat != null ? defaultRutPeak(lat, 2026) : null;
   const autoLabel = auto ? auto.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '—';
@@ -347,7 +347,13 @@ export function Account({ lat }: { lat: number | null }) {
                 {importing && <div className="small">{importing}</div>}
               </div>
             )}
-            <button className="btn" onClick={signOut}>
+            <button
+              className="btn"
+              onClick={() => {
+                if (pendingSync > 0 && !confirm(`${pendingSync} change${pendingSync === 1 ? " hasn't" : "s haven't"} synced yet. They stay on this phone and sync next time you sign in here. Sign out anyway?`)) return;
+                signOut();
+              }}
+            >
               Sign out
             </button>
           </>

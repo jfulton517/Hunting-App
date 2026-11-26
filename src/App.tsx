@@ -5,6 +5,7 @@ import { BestDays } from './components/BestDays';
 import { Bucks } from './components/Bucks';
 import { DayDetail } from './components/DayDetail';
 import { DayStrip } from './components/DayStrip';
+import { HuntCoach } from './components/HuntCoach';
 import { LocationPicker } from './components/LocationPicker';
 import { TrailCam } from './components/TrailCam';
 import { DataProvider, useData } from './lib/data/store';
@@ -12,10 +13,11 @@ import { newId } from './lib/data/types';
 import { bestDays, buildForecast } from './lib/forecast';
 import type { Place } from './lib/location';
 import { load, save } from './lib/storage';
+import { useOnline } from './lib/useOnline';
 import { formatTime, HOUR } from './lib/time';
 import { fetchForecast, fetchNormals, type HourWeather, type Normals, type WeatherForecast } from './lib/weather';
 
-type Tab = 'forecast' | 'bucks' | 'cam' | 'account';
+type Tab = 'forecast' | 'hunt' | 'bucks' | 'cam' | 'account';
 type ForecastView = 'day' | 'best';
 
 const placeKey = (p: { lat: number; lon: number }) => `${p.lat.toFixed(2)},${p.lon.toFixed(2)}`;
@@ -93,7 +95,7 @@ function useWeather(place: Place | null, reloadTick: number) {
           if (e.name === 'AbortError') return;
           setError(
             cachedWx?.key === key
-              ? `Couldn't refresh the weather, so you're seeing the forecast from ${new Date(cachedWx.data.fetchedAt).toLocaleString()}.`
+              ? `Couldn't refresh the weather${navigator.onLine ? '' : ' (no signal)'}, so you're seeing the forecast saved ${new Date(cachedWx.data.fetchedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.`
               : `Couldn't load the weather (${e.message}). Showing a sun, moon, and season outlook only.`,
           );
         })
@@ -115,7 +117,8 @@ function useWeather(place: Place | null, reloadTick: number) {
 }
 
 function Main() {
-  const { rows, settings, setSettings, save: saveRow, loaded, error: dataError } = useData();
+  const { rows, settings, setSettings, save: saveRow, loaded, error: dataError, offline, savedAt, pendingSync } = useData();
+  const online = useOnline();
   const [place, setPlace] = useState<Place | null>(() => load<Place | null>('place', null));
   const [tab, setTab] = useState<Tab>('forecast');
   const [view, setView] = useState<ForecastView>('day');
@@ -156,6 +159,7 @@ function Main() {
   const selectedDay = forecast?.days.find((d) => d.key === selected) ?? forecast?.days[0] ?? null;
   const tz = forecast?.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const pendingCount = rows.sightings.filter((s) => s.status === 'pending').length;
+  const huntLive = rows.hunts.some((h) => !h.ended_at);
   const savedHere = place && rows.places.find((p) => placeKey(p) === placeKey(place));
 
   const pickPlace = (p: Place) => {
@@ -220,6 +224,13 @@ function Main() {
       </header>
 
       {dataError && <div className="banner warn">{dataError}</div>}
+      {(offline || !online) && (
+        <div className="banner offline">
+          📵 No signal. Using what's saved on this phone{savedAt ? ` (updated ${new Date(savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })})` : ''}.
+          {pendingSync > 0 ? ` ${pendingSync} change${pendingSync === 1 ? '' : 's'} will sync when you have service.` : ' Everything you log is saved and will sync later.'}
+        </div>
+      )}
+      {online && !offline && pendingSync > 0 && <div className="banner">Syncing {pendingSync} change{pendingSync === 1 ? '' : 's'}…</div>}
 
       {tab === 'forecast' && (
         <>
@@ -275,13 +286,15 @@ function Main() {
       )}
 
       {tab === 'bucks' && deerForecast && <Bucks fc={{ days: deerForecast.days, wx: wxMap, tz, place }} openId={openDeer} onOpen={setOpenDeer} />}
-      {tab === 'cam' && <TrailCam tz={tz} />}
+      {tab === 'hunt' && <HuntCoach fc={forecast ? { days: forecast.days, wx: wxMap, tz, place, fetchedAt: weather?.fetchedAt ?? null } : null} />}
+      {tab === 'cam' && <TrailCam tz={tz} fc={deerForecast ? { days: deerForecast.days, wx: wxMap, tz, place } : null} />}
       {tab === 'account' && <Account lat={place.lat} />}
 
       <nav className="bottom-nav" aria-label="Sections">
         {(
           [
             ['forecast', '📈', 'Forecast'],
+            ['hunt', '🎯', 'Hunt'],
             ['bucks', '🦌', 'Bucks'],
             ['cam', '📷', 'Trail Cam'],
             ['account', '👤', 'Account'],
@@ -298,6 +311,7 @@ function Main() {
             <span className="nav-icon">{icon}</span>
             <span>{label}</span>
             {key === 'cam' && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
+            {key === 'hunt' && huntLive && <span className="badge live">LIVE</span>}
           </button>
         ))}
       </nav>
