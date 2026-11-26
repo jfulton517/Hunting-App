@@ -14,6 +14,8 @@ export interface ForecastCtx {
   wx: Map<number, HourWeather>;
   tz: string;
   place: { lat: number; lon: number; name: string };
+  /** When the hourly forecast was downloaded (for offline readiness). */
+  fetchedAt?: number | null;
 }
 
 /** Buck activity on one camera: when and in what weather bucks show up, and the best upcoming windows. */

@@ -5,6 +5,7 @@ import { newId, type Hunt, type HuntEvent, type HuntEventKind } from '../lib/dat
 import { load, save as saveLocal } from '../lib/storage';
 import { DAY, formatTime, HOUR, MINUTE } from '../lib/time';
 import { useDeerAnalysis } from '../lib/useDeerAnalysis';
+import { useAppCached, useOnline } from '../lib/useOnline';
 import { compass, hpaToInHg } from '../lib/weather';
 import type { ForecastCtx } from './CameraInsights';
 import { WindArrow } from './ui';
@@ -112,6 +113,7 @@ function situationText(a: CoachAdvice, input: CoachInput, standName: string | nu
 
 function AskCoach({ advice, input, standName, targetName }: { advice: CoachAdvice; input: CoachInput; standName: string | null; targetName: string | null }) {
   const { repo, settings, auth } = useData();
+  const online = useOnline();
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<{ q: string; a: string }[]>([]);
@@ -121,6 +123,13 @@ function AskCoach({ advice, input, standName, targetName }: { advice: CoachAdvic
       <section className="card">
         <h3>Ask the coach</h3>
         <p className="small muted">Ask the AI coach anything mid-hunt, like "buck hung up at 80 yards, what now?" This is part of the optional AI upgrade (Account tab): well under a penny per question on Basic, and a few cents on Pro.</p>
+      </section>
+    );
+  if (!online)
+    return (
+      <section className="card">
+        <h3>Ask the coach</h3>
+        <p className="small muted">📵 No signal. The AI coach needs a connection. Everything else on this screen keeps working offline.</p>
       </section>
     );
   const ask = async (question: string) => {
@@ -172,6 +181,38 @@ function AskCoach({ advice, input, standName, targetName }: { advice: CoachAdvic
   );
 }
 
+/** Checklist so the hunter knows the coach will work with no cell service. */
+function OfflineReady({ fc }: { fc: ForecastCtx }) {
+  const { auth, savedAt, pendingSync, rows } = useData();
+  const appCached = useAppCached();
+  const now = Date.now();
+  const lastHour = Math.max(0, ...[...fc.wx.keys()]);
+  const forecastOk = !!fc.fetchedAt && lastHour > now + 12 * HOUR;
+  const dataOk = auth === 'none' || !!savedAt;
+  const items: { ok: boolean | null; text: string }[] = [
+    { ok: appCached, text: appCached ? 'App saved on this phone' : appCached === null ? 'Checking app storage…' : 'App not saved for offline yet. Open it once from your home screen with signal.' },
+    {
+      ok: forecastOk,
+      text: fc.fetchedAt
+        ? `Hourly forecast saved ${formatTime(fc.fetchedAt, fc.tz)} (${new Date(fc.fetchedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}), covering through ${new Date(lastHour).toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+        : 'No forecast saved yet. Open the Forecast tab once with signal.',
+    },
+    { ok: dataOk, text: `${rows.stands.length} stand${rows.stands.length === 1 ? '' : 's'}, ${rows.deer.length} deer, and your settings are saved on this phone` },
+  ];
+  if (pendingSync > 0) items.push({ ok: null, text: `${pendingSync} change${pendingSync === 1 ? '' : 's'} waiting to sync` });
+  return (
+    <section className="card">
+      <h3>Ready for no service?</h3>
+      {items.map((it) => (
+        <div key={it.text} className="small ready-row">
+          <span className={it.ok ? 'ok-text' : it.ok === false ? 'warn-text' : 'muted'}>{it.ok ? '✓' : it.ok === false ? '!' : '•'}</span> {it.text}
+        </div>
+      ))}
+      <p className="small muted">Open the app at home or in camp while you have signal, so the latest forecast is saved. In the woods, the coach, calling timer, stand advice, and hunt log all work offline, and your log syncs when you're back in service.</p>
+    </section>
+  );
+}
+
 export function HuntCoach({ fc }: { fc: ForecastCtx | null }) {
   const { rows, settings, save } = useData();
   const species = settings.species;
@@ -186,6 +227,7 @@ export function HuntCoach({ fc }: { fc: ForecastCtx | null }) {
   const [endNotes, setEndNotes] = useState('');
   useWakeLock(!!active && keepOn);
 
+  const online = useOnline();
   const huntSpecies = active?.species ?? species;
   const stand = rows.stands.find((s) => s.id === (active?.stand_id ?? standId)) ?? null;
   const targetDeer = rows.deer.find((d) => d.id === (active?.target_deer_id ?? targetId)) ?? null;
@@ -296,6 +338,8 @@ export function HuntCoach({ fc }: { fc: ForecastCtx | null }) {
           ))}
         </section>
 
+        <OfflineReady fc={fc} />
+
         <button className="btn primary block big-btn" onClick={startHunt}>
           ▶ Start hunt{stand ? ` at ${stand.name}` : ''}
         </button>
@@ -341,7 +385,10 @@ export function HuntCoach({ fc }: { fc: ForecastCtx | null }) {
             {stand ? stand.name : huntSpecies === 'turkey' ? 'Turkey setup' : 'No stand'} · {now - startedAt < MINUTE ? 'just started' : `${countdown(now - startedAt)} in`}
           </div>
         </div>
-        <div className="clock">{formatTime(now, fc.tz)}</div>
+        <div className="clock">
+          {formatTime(now, fc.tz)}
+          {!online && <div className="small muted offline-tag">📵 offline</div>}
+        </div>
       </div>
 
       {advice.alerts.map((a) => (

@@ -1351,3 +1351,24 @@ select.input {
 .coach.red-mode {
   filter: grayscale(1) sepia(1) hue-rotate(-50deg) saturate(5) brightness(0.55);
 }
+
+/* ---------- offline ---------- */
+.banner.offline {
+  border-color: #4a5a7a;
+  background: #161e2c;
+}
+.ready-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+}
+.ready-row span:first-child {
+  font-weight: 800;
+  width: 14px;
+  flex-shrink: 0;
+}
+.offline-tag {
+  text-align: right;
+  font-size: 0.7rem;
+  font-weight: 400;
+}
